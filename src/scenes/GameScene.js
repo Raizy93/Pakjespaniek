@@ -103,7 +103,8 @@ export default class GameScene extends Phaser.Scene {
     this.time.addEvent({ delay: 7000, loop: true, callback: () => this.spawnBird() });
     this.spawnBird();
 
-    AudioManager.startMusic();
+    AudioManager.playMusic('game');
+    this.time.delayedCall(250, () => AudioManager.play('respawn')); // Piet/Sint verschijnt
     if (import.meta.env.DEV) window.__scene = this;
   }
 
@@ -272,6 +273,7 @@ export default class GameScene extends Phaser.Scene {
 
   fallRespawn() {
     this.state = STATE.RESPAWN;
+    AudioManager.play('fall');
     const cam = this.cameras.main;
     cam.fadeOut(220, 7, 13, 36);
     cam.once('camerafadeoutcomplete', () => {
@@ -337,7 +339,6 @@ export default class GameScene extends Phaser.Scene {
       }
       this.sparkles.emitParticleAt(chimney.x, chimney.top, 16);
       chimney.complete();
-      AudioManager.play('gate');
       this.floatText(chimney.x, chimney.top - 30, `+${SCORING.pointsPerDelivery}`, '#ffd66b', '#5a3a05');
       bus.emit(EV.DELIVERED, this.tracker.delivered, this.chimneys.length);
       this.quiz.close();

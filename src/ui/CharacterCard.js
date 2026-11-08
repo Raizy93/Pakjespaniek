@@ -44,7 +44,7 @@ export default class CharacterCard extends Phaser.GameObjects.Container {
 
   press() {
     AudioManager.unlock();
-    AudioManager.play('open');
+    AudioManager.play('click');
     this.onClick();
   }
 }

@@ -13,6 +13,10 @@ import HudScene from './scenes/HudScene.js';
 import PauseScene from './scenes/PauseScene.js';
 import ResultsScene from './scenes/ResultsScene.js';
 import AssetPreviewScene from './scenes/AssetPreviewScene.js';
+import { AudioManager } from './systems/AudioManager.js';
+
+// audiobestanden alvast downloaden; afspelen kan pas na de eerste klik of toets
+AudioManager.preload();
 
 async function start() {
   // Wacht op het lettertype, zodat alle teksten meteen goed gemeten worden.
@@ -59,6 +63,7 @@ async function start() {
 
   if (import.meta.env.DEV) {
     window.__pakjes = game;
+    window.__audio = AudioManager;
     if (params.has('bot')) {
       const wrongOn = (params.get('bot') || '0,3').split(',').filter(Boolean).map(Number);
       import('./dev/bot.js').then(({ startBot }) => setTimeout(() => startBot(game, wrongOn), 1500));

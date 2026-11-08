@@ -111,6 +111,28 @@ src/
 4. Draai `npm run check`: elke vraag moet precies 3 verschillende antwoorden hebben,
    waarvan precies één juist.
 
+### Geluid en muziek
+
+De audiobestanden staan in de map `audio/`. In `src/config/audioConfig.js` staat welk bestand
+bij welk spelmoment hoort, plus het volume per bestand. Een bestand vervangen kan door een
+nieuw bestand met dezelfde naam in `audio/` te zetten. Ontbreekt een bestand, dan speelt de
+game automatisch het ingebouwde (zelf gesynthetiseerde) geluid.
+
+| Bestand | Moment |
+|---|---|
+| `menu_music` / `gameplay_music` / `results_music` | muziek in menu / level / resultaten (zachter tijdens een opdracht) |
+| `menu_click` | knop indrukken, personage kiezen |
+| `player_jump` / `player_land` | springen / landen |
+| `player_fall` / `player_spawn` | in een gat vallen / (opnieuw) verschijnen |
+| `pepernoot_collect` | pepernoot oppakken |
+| `checkpoint` | checkpoint bereikt |
+| `chimney_open` | opdracht bij de schoorsteen gaat open |
+| `gift_select` | ander cadeau aanwijzen |
+| `answer_wrong` / `answer_good` | fout / goed antwoord |
+| `gift_throw` / `gift_delivered` | cadeau gooien / cadeau valt in de schoorsteen |
+| `level_completed` | finish bereikt |
+| `star_earned` | ster verschijnt op het resultatenscherm |
+
 ### Een nieuw personage toevoegen
 
 Alle personages delen één skelet met poses en hitbox (`src/assets/characterRig.js`).
@@ -126,6 +148,7 @@ in `src/scenes/GameScene.js`. `npm run check` kan het level dan valideren.
 ## Verantwoording
 
 - Graphics: zelf gemaakt in code (low-poly Canvas-tekeningen), geen externe afbeeldingen.
-- Geluid en muziek: zelf gesynthetiseerd met de Web Audio API (eigen compositie).
+- Geluid en muziek: aangeleverde bestanden in `audio/`; terugval op zelf gesynthetiseerde
+  geluiden (Web Audio API, eigen compositie).
 - Lettertype: Fredoka (SIL Open Font License), lokaal meegeleverd via `@fontsource/fredoka`.
 - Engine: [Phaser 3](https://phaser.io) (MIT-licentie).

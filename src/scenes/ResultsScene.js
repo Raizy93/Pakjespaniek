@@ -102,6 +102,7 @@ export default class ResultsScene extends Phaser.Scene {
     this.focus = new FocusGroup(this, buttons, { horizontal: true });
     this.input.keyboard.on('keydown-ESC', () => this.closeMistakes());
     this.cameras.main.fadeIn(400, 7, 13, 36);
+    AudioManager.playMusic('results');
   }
 
   openMistakes() {

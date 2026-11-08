@@ -113,7 +113,7 @@ export default class MenuScene extends Phaser.Scene {
     this.input.keyboard.on('keydown', () => AudioManager.unlock());
     this.input.on('pointerdown', () => AudioManager.unlock());
     this.cameras.main.fadeIn(300, 7, 13, 36);
-    AudioManager.startMusic();
+    AudioManager.playMusic('menu');
   }
 
   update(time, delta) {

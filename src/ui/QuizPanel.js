@@ -109,7 +109,7 @@ export default class QuizPanel {
 
   select(i, sound = true) {
     if (this.locked || this.disabled.has(i)) return;
-    if (sound && i !== this.selected) AudioManager.play('select');
+    if (sound && i !== this.selected) AudioManager.play('giftSelect');
     this.selected = i;
     this.gifts.forEach((g, gi) => {
       const on = gi === i;
@@ -172,6 +172,7 @@ export default class QuizPanel {
         const tmp = new Phaser.Math.Vector2();
         this.scene.tweens.addCounter({
           from: 0, to: 1, duration: 520, ease: 'Sine.In', delay: 160,
+          onStart: () => AudioManager.play('throw'),
           onUpdate: (tw) => {
             const t = tw.getValue();
             curve.getPoint(t, tmp);

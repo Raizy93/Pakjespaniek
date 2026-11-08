@@ -1,14 +1,26 @@
-// Audio via de Web Audio API. Alle geluiden en de muziek worden in code
-// gesynthetiseerd: origineel, klein en zonder licentievragen.
+// Audio via de Web Audio API.
 //
-// Bussen:  master ← { music, sfx }   (instellingen schakelen de bussen)
-// Ducking: tijdens een opdracht zakt de muziek, zodat leerlingen rustig kunnen rekenen.
+// Bestanden uit de map /audio (zie src/config/audioConfig.js) worden gebruikt
+// waar ze beschikbaar zijn; anders valt de game terug op ingebouwde,
+// gesynthetiseerde geluiden.
+//
+// Bussen:  master ← music ← { muziekbestanden, synthMusic }
+//                 ← sfx   ← { effectbestanden, synthSfx }
+// Instellingen schakelen de bussen; tijdens een opdracht zakt de muziek (ducking).
 import { Storage } from './storage.js';
+import { SFX, MUSIC, MUSIC_DUCK, MUSIC_FADE } from '../config/audioConfig.js';
 
-const MUSIC_LEVEL = 0.16;
-const SFX_LEVEL = 0.55;
+// Alle audiobestanden in /audio; Vite zet ze mee in de build (met eigen URL).
+const FILE_URLS = Object.fromEntries(
+  Object.entries(import.meta.glob('../../audio/*.{mp3,ogg,wav,m4a}', { eager: true, query: '?url', import: 'default' }))
+    .map(([path, url]) => [path.split('/').pop().replace(/\.[^.]+$/, ''), url]),
+);
+
+const SYNTH_MUSIC_LEVEL = 0.16;
+const SYNTH_SFX_LEVEL = 0.55;
 
 // Origineel deuntje (C-groot, speelse speeldoos), 16 maten van 8 achtsten.
+// Wordt alleen gebruikt als er geen muziekbestand is.
 const _ = null;
 const MELODY = [
   [76, 79, 84, 79, 76, _, 74, 72], [69, 72, 76, 81, 79, _, 76, _],
@@ -30,8 +42,26 @@ class AudioManagerClass {
     this.ctx = null;
     this.musicOn = Storage.settings.music;
     this.sfxOn = Storage.settings.sfx;
-    this.musicWanted = false;
     this.ducked = false;
+    this.raw = new Map(); // bestandsnaam → Promise<ArrayBuffer|null>
+    this.buffers = new Map(); // bestandsnaam → AudioBuffer
+    this.monoVoices = new Map(); // sfx-naam → lopende bron
+    this.wantedTrack = null; // 'menu' | 'game' | 'results'
+    this.current = null; // { track, src, gain } of { track, synth: true }
+  }
+
+  /** Begint direct met downloaden (zonder AudioContext); decoderen gebeurt na de eerste klik. */
+  preload() {
+    const files = new Set([...Object.values(SFX), ...Object.values(MUSIC)].map((e) => e.file));
+    for (const name of files) {
+      const url = FILE_URLS[name];
+      if (!url || this.raw.has(name)) continue;
+      this.raw.set(name, fetch(url).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null));
+    }
+  }
+
+  hasFile(name) {
+    return Boolean(FILE_URLS[name]);
   }
 
   /** Moet vanuit een gebruikersactie worden aangeroepen (browserbeleid). */
@@ -43,19 +73,42 @@ class AudioManagerClass {
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.9;
       const comp = this.ctx.createDynamicsCompressor();
-      comp.threshold.value = -10;
+      comp.threshold.value = -8;
       comp.ratio.value = 4;
       this.master.connect(comp).connect(this.ctx.destination);
       this.musicBus = this.ctx.createGain();
-      this.musicBus.gain.value = this.musicOn ? MUSIC_LEVEL : 0;
+      this.musicBus.gain.value = this.musicTarget();
       this.musicBus.connect(this.master);
       this.sfxBus = this.ctx.createGain();
-      this.sfxBus.gain.value = this.sfxOn ? SFX_LEVEL : 0;
+      this.sfxBus.gain.value = this.sfxOn ? 1 : 0;
       this.sfxBus.connect(this.master);
+      this.synthMusic = this.ctx.createGain();
+      this.synthMusic.gain.value = SYNTH_MUSIC_LEVEL;
+      this.synthMusic.connect(this.musicBus);
+      this.synthSfx = this.ctx.createGain();
+      this.synthSfx.gain.value = SYNTH_SFX_LEVEL;
+      this.synthSfx.connect(this.sfxBus);
       this.noise = this.makeNoise();
+      this.decodeAll();
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
-    if (this.musicWanted && !this.timer) this.startScheduler();
+    if (this.wantedTrack && !this.current) this.playMusic(this.wantedTrack);
+  }
+
+  decodeAll() {
+    this.preload();
+    for (const [name, promise] of this.raw) {
+      promise
+        .then((ab) => (ab ? this.ctx.decodeAudioData(ab) : null))
+        .then((buf) => {
+          if (!buf) return;
+          this.buffers.set(name, buf);
+          // muziek die al gevraagd werd en op dit bestand wachtte, nu starten
+          const wanted = this.wantedTrack && MUSIC[this.wantedTrack];
+          if (wanted?.file === name && !this.current) this.playMusic(this.wantedTrack);
+        })
+        .catch(() => {});
+    }
   }
 
   makeNoise() {
@@ -75,13 +128,16 @@ class AudioManagerClass {
   setSfx(on) {
     this.sfxOn = on;
     Storage.setSetting('sfx', on);
-    if (this.sfxBus) this.sfxBus.gain.setTargetAtTime(on ? SFX_LEVEL : 0, this.ctx.currentTime, 0.05);
+    if (this.sfxBus) this.sfxBus.gain.setTargetAtTime(on ? 1 : 0, this.ctx.currentTime, 0.05);
+  }
+
+  musicTarget() {
+    return this.musicOn ? (this.ducked ? MUSIC_DUCK : 1) : 0;
   }
 
   applyMusicGain() {
     if (!this.musicBus) return;
-    const target = this.musicOn ? MUSIC_LEVEL * (this.ducked ? 0.35 : 1) : 0;
-    this.musicBus.gain.setTargetAtTime(target, this.ctx.currentTime, 0.25);
+    this.musicBus.gain.setTargetAtTime(this.musicTarget(), this.ctx.currentTime, 0.25);
   }
 
   duck(on) {
@@ -90,18 +146,55 @@ class AudioManagerClass {
   }
 
   // ------------------------------------------------------------ muziek
-  startMusic() {
-    this.musicWanted = true;
-    if (this.ctx && !this.timer) this.startScheduler();
+  /** Speelt de muziek voor een scherm ('menu' | 'game' | 'results') met een zachte overgang. */
+  playMusic(track) {
+    this.wantedTrack = track;
+    if (!this.ctx) return; // start na de eerste klik/toets (unlock)
+    if (this.current?.track === track) return;
+    const entry = MUSIC[track];
+    const buf = entry && this.buffers.get(entry.file);
+    const waiting = Boolean(entry && this.hasFile(entry.file) && !buf);
+    this.fadeOutCurrent();
+    if (buf) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const gain = this.ctx.createGain();
+      const t = this.ctx.currentTime;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(entry.gain, t + MUSIC_FADE);
+      src.connect(gain).connect(this.musicBus);
+      src.start(t);
+      this.current = { track, src, gain };
+    } else if (!waiting) {
+      // geen bestand voor dit scherm: ingebouwd deuntje
+      this.startSynthMusic();
+      this.current = { track, synth: true };
+    }
+    // waiting: bestand wordt nog gedecodeerd; decodeAll start het zodra het klaar is
+  }
+
+  fadeOutCurrent() {
+    const cur = this.current;
+    if (!cur) return;
+    if (cur.synth) this.stopSynthMusic();
+    else {
+      const t = this.ctx.currentTime;
+      cur.gain.gain.cancelScheduledValues(t);
+      cur.gain.gain.setValueAtTime(Math.max(0.0001, cur.gain.gain.value), t);
+      cur.gain.gain.exponentialRampToValueAtTime(0.0001, t + MUSIC_FADE);
+      cur.src.stop(t + MUSIC_FADE + 0.05);
+    }
+    this.current = null;
   }
 
   stopMusic() {
-    this.musicWanted = false;
-    clearInterval(this.timer);
-    this.timer = null;
+    this.wantedTrack = null;
+    if (this.ctx) this.fadeOutCurrent();
   }
 
-  startScheduler() {
+  startSynthMusic() {
+    if (this.timer) return;
     const eighth = 60 / BPM / 2;
     this.step = 0;
     this.nextTime = this.ctx.currentTime + 0.1;
@@ -115,6 +208,50 @@ class AudioManagerClass {
         this.step = (this.step + 1) % (MELODY.length * 8);
       }
     }, 40);
+  }
+
+  stopSynthMusic() {
+    clearInterval(this.timer);
+    this.timer = null;
+  }
+
+  // ------------------------------------------------------------ effecten
+  /** Speelt een spelmoment: eerst het audiobestand, anders het ingebouwde geluid. */
+  play(name) {
+    if (!this.ctx || !this.sfxOn) return;
+    const entry = SFX[name];
+    if (entry && this.hasFile(entry.file)) {
+      const buf = this.buffers.get(entry.file);
+      if (buf) this.playBuffer(name, buf, entry);
+      return; // bestand bestaat maar is nog niet klaar: even stil, geen dubbel geluid
+    }
+    this.playSynth(name);
+  }
+
+  playBuffer(name, buf, { gain = 1, vary = 0, mono = false }) {
+    if (mono) {
+      const prev = this.monoVoices.get(name);
+      if (prev) {
+        try {
+          prev.stop();
+        } catch {
+          /* al gestopt */
+        }
+      }
+    }
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    if (vary) src.playbackRate.value = 1 + (Math.random() * 2 - 1) * vary;
+    const g = this.ctx.createGain();
+    g.gain.value = gain;
+    src.connect(g).connect(this.sfxBus);
+    src.start();
+    if (mono) {
+      this.monoVoices.set(name, src);
+      src.onended = () => {
+        if (this.monoVoices.get(name) === src) this.monoVoices.delete(name);
+      };
+    }
   }
 
   scheduleStep(step, t, eighth) {
@@ -142,7 +279,7 @@ class AudioManagerClass {
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g);
     o2.connect(g2).connect(g);
-    g.connect(this.musicBus);
+    g.connect(this.synthMusic);
     o.start(t);
     o2.start(t);
     o.stop(t + dur + 0.05);
@@ -158,7 +295,7 @@ class AudioManagerClass {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(0.38, t + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g).connect(this.musicBus);
+    o.connect(g).connect(this.synthMusic);
     o.start(t);
     o.stop(t + dur + 0.05);
   }
@@ -173,7 +310,7 @@ class AudioManagerClass {
     const g = c.createGain();
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
-    src.connect(f).connect(g).connect(this.musicBus);
+    src.connect(f).connect(g).connect(this.synthMusic);
     src.start(t, Math.random() * 0.5, 0.1);
   }
 
@@ -189,7 +326,7 @@ class AudioManagerClass {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(vol, t + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g).connect(this.sfxBus);
+    o.connect(g).connect(this.synthSfx);
     o.start(t);
     o.stop(t + dur + 0.05);
   }
@@ -206,11 +343,11 @@ class AudioManagerClass {
     const g = c.createGain();
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(f).connect(g).connect(this.sfxBus);
+    src.connect(f).connect(g).connect(this.synthSfx);
     src.start(t, Math.random() * 0.4, dur + 0.05);
   }
 
-  play(name) {
+  playSynth(name) {
     if (!this.ctx || !this.sfxOn) return;
     const v = 1 + (Math.random() - 0.5) * 0.08; // kleine variatie
     switch (name) {
