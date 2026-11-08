@@ -16,6 +16,7 @@ export default class ResultsScene extends Phaser.Scene {
     this.levelId = data.levelId;
     this.bankId = data.bankId;
     this.levelName = data.levelName;
+    this.character = data.character ?? 'piet';
   }
 
   create() {
@@ -37,9 +38,9 @@ export default class ResultsScene extends Phaser.Scene {
       this.tweens.add({ targets: o, alpha: 1, y: o.y + 30, duration: 450, ease: 'Back.Out' });
     });
 
-    // Piet juicht
-    const piet = this.add.image(190, H - 70, 'piet_big_cheer').setOrigin(0.5, 1).setScale(0.95);
-    this.tweens.add({ targets: piet, y: H - 86, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    // het gekozen personage juicht
+    const hero = this.add.image(190, H - 60, `${this.character}_big_cheer`).setOrigin(0.5, 1).setScale(0.85);
+    this.tweens.add({ targets: hero, y: H - 76, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
 
     // paneel met resultaten
     const px = W / 2 + 40;
@@ -92,7 +93,7 @@ export default class ResultsScene extends Phaser.Scene {
     // knoppen
     const by = H - 46;
     const buttons = [
-      new Button(this, px - 200, by, 'Opnieuw spelen', { width: 250, height: 58, variant: 'red', size: 24, onClick: () => this.scene.start('Game', { bankId: this.bankId, levelId: this.levelId }) }),
+      new Button(this, px - 200, by, 'Opnieuw spelen', { width: 250, height: 58, variant: 'red', size: 24, onClick: () => this.scene.start('Game', { bankId: this.bankId, levelId: this.levelId, character: this.character }) }),
       new Button(this, px + 70, by, 'Hoofdmenu', { width: 220, height: 58, variant: 'navy', size: 24, onClick: () => this.scene.start('Menu') }),
     ];
     if (s.mistakes.length) {

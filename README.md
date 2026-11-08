@@ -3,8 +3,9 @@
 Educatieve Sinterklaas-platformgame voor groep 7–8, gemaakt voor
 [MeesterDanny.com](https://www.meesterdanny.com).
 
-Piet rent over de daken van het Sinterklaasdorp. Bij elke schoorsteen bezorgt hij
-een cadeautje door de juiste rekenopdracht op te lossen.
+De leerling kiest of die als **Piet** of als **Sinterklaas** over de daken van het
+Sinterklaasdorp rent. Bij elke schoorsteen wordt een cadeautje bezorgd door de juiste
+rekenopdracht op te lossen. Beide personages lopen en springen precies hetzelfde.
 
 **Leerdoel (versie 1):** Ik kan veelvoorkomende breuken omzetten naar procenten.
 
@@ -34,7 +35,7 @@ Open daarna <http://localhost:5173>.
 
 Handige ontwikkel-URL's (alleen in `npm run dev`):
 
-- `?play` – direct het level starten
+- `?play` – direct het level starten (`?play&char=sint` als Sinterklaas)
 - `?preview` – alle assets op ware grootte bekijken
 - `?debug` – physics-botsingsvakken tonen
 - `?play&bot` – een testbot speelt het hele level met echte toetsaanslagen (log in `window.botLog`).
@@ -84,7 +85,8 @@ src/
   main.js                  Phaser-configuratie en opstarten
   config/gameConfig.js     alle afstelling (spronggevoel, camera, scores)
   scenes/                  Boot, Menu, Game, Hud, Pause, Results (+ AssetPreview)
-  entities/Player.js       character controller van Piet
+  entities/Player.js       character controller (voor elk personage)
+  characters/registry.js   speelbare personages (Piet, Sinterklaas)
   entities/Chimney.js      schoorsteen met 3 toestanden + poort
   levels/level1.js         leveldata (puur data)
   levels/LevelBuilder.js   bouwt de wereld uit leveldata
@@ -108,6 +110,13 @@ src/
 3. Registreer het bestand in `src/education/registry.js`.
 4. Draai `npm run check`: elke vraag moet precies 3 verschillende antwoorden hebben,
    waarvan precies één juist.
+
+### Een nieuw personage toevoegen
+
+Alle personages delen één skelet met poses en hitbox (`src/assets/characterRig.js`).
+Maak een tekenfunctie zoals `src/assets/sint.js`, registreer die in
+`src/characters/registry.js` en zet de id in `CHARACTER_ORDER`. Het keuzescherm,
+de animaties (`<id>-run` enz.) en de grote portretten worden automatisch gemaakt.
 
 ### Een nieuw level toevoegen
 

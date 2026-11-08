@@ -11,6 +11,8 @@ import ResultsTracker from '../education/ResultsTracker.js';
 import { AudioManager } from '../systems/AudioManager.js';
 import { bus, EV } from '../systems/events.js';
 import { makeText } from '../ui/text.js';
+import { getCharacter } from '../characters/registry.js';
+import { Storage } from '../systems/storage.js';
 
 const STATE = { PLAY: 'play', QUIZ: 'quiz', DELIVER: 'deliver', RESPAWN: 'respawn', FINISH: 'finish' };
 const LEVELS = { [level1.id]: level1 };
@@ -23,6 +25,7 @@ export default class GameScene extends Phaser.Scene {
   init(data = {}) {
     this.level = LEVELS[data.levelId] ?? level1;
     this.bank = getBank(data.bankId);
+    this.character = getCharacter(data.character ?? Storage.settings.character);
     this.state = STATE.PLAY;
     this.activeChimney = null;
     this.quiz = null;
@@ -51,7 +54,7 @@ export default class GameScene extends Phaser.Scene {
     // speler
     const spawnY = this.world.roofYAt(L.spawn.x);
     this.checkpoint = { x: L.spawn.x, y: spawnY };
-    this.player = new Player(this, L.spawn.x, spawnY - 2);
+    this.player = new Player(this, L.spawn.x, spawnY - 2, this.character.id);
     this.player.on('jump', () => AudioManager.play('jump'));
     this.player.on('land', (vy) => this.onLand(vy));
 
@@ -389,7 +392,7 @@ export default class GameScene extends Phaser.Scene {
       this.cameras.main.once('camerafadeoutcomplete', () => {
         AudioManager.duck(false);
         this.scene.stop('Hud');
-        this.scene.start('Results', { summary, levelId: this.level.id, levelName: this.level.name, bankId: this.bank.id });
+        this.scene.start('Results', { summary, levelId: this.level.id, levelName: this.level.name, bankId: this.bank.id, character: this.character.id });
       });
     });
   }
@@ -401,6 +404,6 @@ export default class GameScene extends Phaser.Scene {
     if (performance.now() - (this.resumedAt ?? 0) < 250) return;
     AudioManager.play('click');
     this.scene.pause();
-    this.scene.launch('Pause', { bankId: this.bank.id, levelId: this.level.id });
+    this.scene.launch('Pause', { bankId: this.bank.id, levelId: this.level.id, character: this.character.id });
   }
 }

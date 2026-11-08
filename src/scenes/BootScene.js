@@ -22,7 +22,7 @@ export default class BootScene extends Phaser.Scene {
       const params = new URLSearchParams(window.location.search);
       const dev = import.meta.env.DEV;
       if (dev && params.has('preview')) this.scene.start('AssetPreview');
-      else if (dev && params.has('play')) this.scene.start('Game');
+      else if (dev && params.has('play')) this.scene.start('Game', { character: params.get('char') ?? undefined });
       else this.scene.start('Menu');
     });
   }

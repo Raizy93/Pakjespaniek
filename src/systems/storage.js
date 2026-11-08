@@ -3,7 +3,7 @@
 const KEY = 'pakjespaniek.v1';
 
 const DEFAULTS = {
-  settings: { music: true, sfx: true },
+  settings: { music: true, sfx: true, character: 'piet' },
   best: {}, // levelId → { stars, points }
 };
 

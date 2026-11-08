@@ -8,6 +8,9 @@ import { AudioManager } from '../systems/AudioManager.js';
 import { Storage } from '../systems/storage.js';
 import { getBank, DEFAULT_BANK_ID } from '../education/registry.js';
 import level1 from '../levels/level1.js';
+import { CHAR_FRAME } from '../assets/characterRig.js';
+import { CHARACTERS, CHARACTER_ORDER, getCharacter } from '../characters/registry.js';
+import CharacterCard from '../ui/CharacterCard.js';
 
 export default class MenuScene extends Phaser.Scene {
   constructor() {
@@ -48,9 +51,12 @@ export default class MenuScene extends Phaser.Scene {
     const glow = this.add.image(1180, 480, 'glow').setTint(0xffa23c).setScale(1.6).setAlpha(0.5).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: glow, alpha: 0.32, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
 
-    // Piet op het dak
-    const piet = this.add.image(120, 564, 'piet_big').setOrigin(0.5, 126 / 132).setScale(0.62);
+    // Piet en Sinterklaas op de daken
+    const footOrigin = CHAR_FRAME.foot / CHAR_FRAME.h;
+    const piet = this.add.image(120, 564, 'piet_big').setOrigin(0.5, footOrigin).setScale(0.62);
+    const sint = this.add.image(990, 594, 'sint_big').setOrigin(0.5, footOrigin).setScale(0.62).setFlipX(true);
     this.tweens.add({ targets: piet, scaleY: 0.63, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    this.tweens.add({ targets: sint, scaleY: 0.63, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.InOut', delay: 300 });
 
     // --- logo
     const logo = this.add.container(W / 2, 112);
@@ -77,7 +83,7 @@ export default class MenuScene extends Phaser.Scene {
     // --- knoppen
     const best = Storage.getBest(level1.id);
     const buttons = [
-      new Button(this, W / 2, 352, 'Spelen', { width: 320, height: 72, variant: 'red', size: 36, onClick: () => this.startGame() }),
+      new Button(this, W / 2, 352, 'Spelen', { width: 320, height: 72, variant: 'red', size: 36, onClick: () => this.openCharacterSelect() }),
       new Button(this, W / 2, 436, 'Speluitleg', { width: 280, height: 58, variant: 'navy', size: 26, onClick: () => this.openHowTo() }),
       new Button(this, W / 2, 506, 'Instellingen', { width: 280, height: 58, variant: 'navy', size: 26, onClick: () => this.openSettings() }),
     ];
@@ -118,15 +124,35 @@ export default class MenuScene extends Phaser.Scene {
     this.cloudB.x = ((900 - this.scroll * 0.2) % 1600 + 1600) % 1600 - 200;
   }
 
-  startGame() {
+  startGame(characterId) {
     AudioManager.unlock();
     this.focus.active = false;
+    if (this.modalFocus) this.modalFocus.active = false;
     this.cameras.main.fadeOut(300, 7, 13, 36);
-    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Game', { bankId: this.bankId, levelId: level1.id }));
+    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Game', { bankId: this.bankId, levelId: level1.id, character: characterId }));
+  }
+
+  /** Personagekeuze: Piet of Sinterklaas (keuze wordt onthouden). */
+  openCharacterSelect() {
+    const last = getCharacter(Storage.settings.character).id;
+    this.openModal('Met wie ga je bezorgen?', 760, 560, (c) => {
+      const cards = CHARACTER_ORDER.map((id, i) => {
+        const card = new CharacterCard(this, (i - (CHARACTER_ORDER.length - 1) / 2) * 330, 0, CHARACTERS[id], {
+          onClick: () => {
+            Storage.setSetting('character', id);
+            this.startGame(id);
+          },
+        });
+        card.setScale(0.96);
+        c.add(card);
+        return card;
+      });
+      return cards;
+    }, { horizontal: true, focusIndex: Math.max(0, CHARACTER_ORDER.indexOf(last)) });
   }
 
   // ------------------------------------------------------------ modals
-  openModal(title, w, h, build) {
+  openModal(title, w, h, build, { horizontal = false, focusIndex = null } = {}) {
     this.closeModal();
     const { width: W, height: H } = VIEW;
     this.focus.active = false;
@@ -137,8 +163,8 @@ export default class MenuScene extends Phaser.Scene {
     const extraButtons = build(c) ?? [];
     const close = new Button(this, 0, h / 2 - 52, 'Terug', { width: 200, height: 54, variant: 'red', size: 24, onClick: () => this.closeModal() });
     c.add(close);
-    this.modalFocus = new FocusGroup(this, [...extraButtons, close]);
-    this.modalFocus.focus(extraButtons.length, false);
+    this.modalFocus = new FocusGroup(this, [...extraButtons, close], { horizontal });
+    this.modalFocus.focus(focusIndex ?? extraButtons.length, false);
     c.setScale(0.9).setAlpha(0);
     this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 220, ease: 'Back.Out' });
     this.modal = { shade, c };

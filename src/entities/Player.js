@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { PLAYER } from '../config/gameConfig.js';
-import { PIET_FRAME } from '../assets/piet.js';
+import { CHAR_FRAME } from '../assets/characterRig.js';
 
 const approach = (v, target, step) => (v < target ? Math.min(v + step, target) : Math.max(v - step, target));
 
@@ -10,15 +10,16 @@ const approach = (v, target, step) => (v < target ? Math.min(v + step, target) :
  * bepaald voor een strak spronggevoel (zie platformer-skill).
  */
 export default class Player extends Phaser.Physics.Arcade.Sprite {
-  constructor(scene, x, y) {
-    super(scene, x, y, 'piet', 'idle_0');
+  constructor(scene, x, y, characterId = 'piet') {
+    super(scene, x, y, characterId, 'idle_0');
+    this.characterId = characterId;
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    this.setOrigin(0.5, PIET_FRAME.foot / PIET_FRAME.h);
+    this.setOrigin(0.5, CHAR_FRAME.foot / CHAR_FRAME.h);
     const { width, height } = PLAYER.body;
     this.body.setSize(width, height);
-    this.body.setOffset((PIET_FRAME.w - width) / 2, PIET_FRAME.foot - height);
+    this.body.setOffset((CHAR_FRAME.w - width) / 2, CHAR_FRAME.foot - height);
     this.body.setMaxVelocity(1200, PLAYER.maxFallSpeed);
     this.setCollideWorldBounds(true);
     this.setDepth(50);
@@ -37,6 +38,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   get onFloor() {
     return this.body.blocked.down || this.body.touching.down;
+  }
+
+  /** Animatiesleutel voor dit personage, bijv. 'sint-run'. */
+  anim(name) {
+    return `${this.characterId}-${name}`;
   }
 
   /** input: { left, right, jumpDown, jumpPressed, jumpReleased } */
@@ -113,15 +119,15 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.locked) return;
     const vx = Math.abs(this.body.velocity.x);
     if (!onFloor) {
-      this.play(this.body.velocity.y < 0 ? 'piet-jump' : 'piet-fall', true);
+      this.play(this.body.velocity.y < 0 ? this.anim('jump') : this.anim('fall'), true);
     } else if (this.landTimer > 0) {
-      this.play('piet-land', true);
+      this.play(this.anim('land'), true);
     } else if (vx > 25) {
-      this.play('piet-run', true);
+      this.play(this.anim('run'), true);
       this.anims.timeScale = Phaser.Math.Clamp(vx / 300, 0.6, 1.2);
       return;
     } else {
-      this.play('piet-idle', true);
+      this.play(this.anim('idle'), true);
     }
     this.anims.timeScale = 1;
   }
@@ -131,7 +137,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     if (on) {
       this.body.setVelocity(0, Math.max(0, this.body.velocity.y));
       this.buffer = 0;
-      if (!this.locked) this.play('piet-idle', true);
+      if (!this.locked) this.play(this.anim('idle'), true);
     }
   }
 
@@ -143,8 +149,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   playDeliver(onDone) {
     this.locked = true;
     this.anims.timeScale = 1;
-    this.play('piet-deliver');
-    this.once('animationcomplete-piet-deliver', () => {
+    this.play(this.anim('deliver'));
+    this.once(`animationcomplete-${this.anim('deliver')}`, () => {
       this.locked = false;
       onDone?.();
     });
@@ -153,7 +159,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   celebrate() {
     this.locked = true;
     this.anims.timeScale = 1;
-    this.play('piet-celebrate');
+    this.play(this.anim('celebrate'));
   }
 
   respawn(x, y) {
@@ -164,7 +170,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.jumping = false;
     this.prevVy = 0;
     this.locked = false;
-    this.play('piet-idle');
+    this.play(this.anim('idle'));
     this.setAlpha(1);
     this.scene.tweens.add({ targets: this, alpha: { from: 0.2, to: 1 }, duration: 120, repeat: 3, yoyo: false });
   }

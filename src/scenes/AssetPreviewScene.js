@@ -24,11 +24,11 @@ export default class AssetPreviewScene extends Phaser.Scene {
     this.add.image(700, 540 - 40, b3.key).setOrigin(0);
 
     const anims = ['idle', 'run', 'jump', 'fall', 'land', 'deliver', 'celebrate'];
-    anims.forEach((a, i) => {
-      const s = this.add.sprite(60 + i * 90, 520, 'piet').setOrigin(0.5, 110 / 116);
-      s.play({ key: `piet-${a}`, repeat: -1 });
-      this.add.text(60 + i * 90, 530, a, { fontFamily: FONT, fontSize: '14px' }).setOrigin(0.5, 0);
-    });
+    ['piet', 'sint'].forEach((id, row) => anims.forEach((a, i) => {
+      const s = this.add.sprite(60 + i * 90, 380 + row * 150, id).setOrigin(0.5, 144 / 150);
+      s.play({ key: `${id}-${a}`, repeat: -1 });
+      this.add.text(60 + i * 90, 388 + row * 150, a, { fontFamily: FONT, fontSize: '14px' }).setOrigin(0.5, 0);
+    }));
 
     this.add.image(470, 470, 'chimney').setOrigin(0.5, 1);
     this.add.image(470, 410, 'check_badge');
