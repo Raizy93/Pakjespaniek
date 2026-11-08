@@ -1,0 +1,22 @@
+# Besturingssysteem
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Node / build (voor als we later tools gebruiken)
+node_modules/
+dist/
+build/
+.cache/
+
+# Logs en tijdelijke bestanden
+*.log
+*.tmp
+
+# Lokale Claude-instellingen
+.claude/settings.local.json
