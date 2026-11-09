@@ -1,6 +1,7 @@
 // Controleert vragenbanken, sterrenberekening en leveldata zonder browser.
 // Gebruik: npm run check
 import { BANKS } from '../src/education/registry.js';
+import { parsePercent } from '../src/education/banks/breukenProcenten.js';
 import { validateBank, createRound } from '../src/education/QuestionBank.js';
 import ResultsTracker from '../src/education/ResultsTracker.js';
 import { SCORING } from '../src/config/gameConfig.js';
@@ -16,37 +17,69 @@ const check = (cond, msg) => {
 };
 
 // 1. Vragenbanken
+const ROUND = 8;
 for (const bank of Object.values(BANKS)) {
   const errors = validateBank(bank);
-  check(errors.length === 0, `Vragenbank "${bank.id}" is geldig ${errors.length ? '\n  ' + errors.join('\n  ') : ''}`);
+  check(errors.length === 0, `Vragenbank "${bank.id}" is geldig (${bank.questions.length} vragen) ${errors.length ? '\n  ' + errors.join('\n  ') : ''}`);
 
   // Rekenkundige controle voor breuk → procent-vragen
+  let arithmeticOk = true;
+  let distractorsOk = true;
+  let explanationOk = true;
   for (const q of bank.questions) {
     const frac = q.prompt.find((p) => typeof p === 'object' && p.frac);
     if (!frac) continue;
     const [t, n] = frac.frac;
     const expected = (t / n) * 100;
-    const given = parseFloat(q.correct.replace(',', '.').replace('%', ''));
-    check(Math.abs(expected - given) < 1e-9, `${q.id}: ${t}/${n} = ${q.correct}`);
-    const others = q.answers.filter((a) => a !== q.correct).map((a) => parseFloat(a.replace(',', '.')));
-    check(others.every((v) => Math.abs(v - expected) > 1e-9), `${q.id}: afleiders zijn echt fout`);
-    if (q.explanation) check(q.explanation.includes(q.correct), `${q.id}: uitleg noemt het juiste antwoord`);
+    // juist = exacte waarde, afgerond op één decimaal (1/3 → 33,3%; 2/3 → 66,7%)
+    if (Math.abs(parsePercent(q.correct) - Math.round(expected * 10) / 10) > 1e-9) {
+      arithmeticOk = false;
+      console.error(`  ${q.id}: ${t}/${n} ≠ ${q.correct}`);
+    }
+    const wrong = q.answers ? q.answers.filter((a) => a !== q.correct) : q.distractors;
+    const bad = wrong.filter((a) => Math.abs(parsePercent(a) - expected) < 3.9 || parsePercent(a) <= 0 || parsePercent(a) >= 100);
+    if (bad.length || wrong.length < 2) {
+      distractorsOk = false;
+      console.error(`  ${q.id}: verdachte foute antwoorden ${bad.join(', ')}`);
+    }
+    if (q.explanation && !q.explanation.includes(q.correct)) {
+      explanationOk = false;
+      console.error(`  ${q.id}: uitleg noemt ${q.correct} niet`);
+    }
   }
+  check(arithmeticOk, 'Alle juiste antwoorden kloppen rekenkundig');
+  check(distractorsOk, 'Alle foute antwoorden zijn echt fout (≥ 4 procentpunt verschil, tussen 0 en 100%)');
+  check(explanationOk, 'Elke uitleg noemt het juiste antwoord');
 
-  // Willekeur: positie van juiste antwoord varieert en vragen blijven compleet
+  // Willekeur en regels per ronde
   const positions = new Set();
   const orders = new Set();
-  for (let i = 0; i < 200; i++) {
-    const round = createRound(bank, bank.questions.length);
+  const seenQuestions = new Set();
+  const answerSets = new Set();
+  let roundsOk = true;
+  for (let i = 0; i < 500; i++) {
+    const round = createRound(bank, ROUND);
     orders.add(round.map((q) => q.id).join(','));
+    const values = new Set();
+    const perGroup = new Map();
     for (const q of round) {
+      seenQuestions.add(q.id);
+      answerSets.add(`${q.id}:${[...q.answers].sort().join('|')}`);
       positions.add(q.correctIndex);
-      if (q.answers[q.correctIndex] !== q.correct) throw new Error('correctIndex klopt niet');
+      const src = bank.questions.find((b) => b.id === q.id);
+      if (q.answers.length !== 3 || new Set(q.answers).size !== 3) roundsOk = false;
+      if (q.answers[q.correctIndex] !== q.correct || q.answers.filter((a) => a === q.correct).length !== 1) roundsOk = false;
+      values.add(q.correct);
+      perGroup.set(src.group, (perGroup.get(src.group) ?? 0) + 1);
     }
-    if (new Set(round.map((q) => q.id)).size !== bank.questions.length) throw new Error('vraag dubbel in ronde');
+    if (round.length !== ROUND || values.size !== ROUND) roundsOk = false;
+    if ([...perGroup.values()].some((c) => c > (bank.maxPerGroup ?? Infinity))) roundsOk = false;
   }
-  check(positions.size === 3, `Juiste antwoord komt op alle 3 posities voor`);
-  check(orders.size > 50, `Vraagvolgorde wordt gehusseld (${orders.size} verschillende volgordes in 200 rondes)`);
+  check(roundsOk, `500 rondes: steeds ${ROUND} vragen, 3 verschillende antwoorden, precies 1 juist, geen dubbele antwoorden, max ${bank.maxPerGroup} per noemer`);
+  check(positions.size === 3, 'Juiste antwoord komt op alle 3 posities voor');
+  check(orders.size > 450, `Vragen worden willekeurig gekozen (${orders.size} verschillende rondes van 500)`);
+  check(seenQuestions.size === bank.questions.length, `Alle ${bank.questions.length} breuken komen voor (${seenQuestions.size} gezien)`);
+  check(answerSets.size > bank.questions.length, `Foute antwoorden variëren per ronde (${answerSets.size} combinaties)`);
 }
 
 // 2. Sterren

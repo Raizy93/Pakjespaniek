@@ -9,6 +9,14 @@ rekenopdracht op te lossen. Beide personages lopen en springen precies hetzelfde
 
 **Leerdoel (versie 1):** Ik kan veelvoorkomende breuken omzetten naar procenten.
 
+De vragenpool bevat alle basale breuken met noemer 2, 3, 4, 5, 8 en 10 en hun veelvouden
+(32 breuken, van 1/2 tot en met 10/10; ook het geheel, zoals 3/3 = 100%). Derden staan als kommagetal op één decimaal: 1/3 = 33,3%
+en 2/3 = 66,7%. Elke speelronde kiest daar willekeurig 8 uit:
+nooit twee met hetzelfde antwoord (dus niet 1/2 én 4/8) en hooguit 2 met dezelfde noemer.
+Ongeveer de helft van de rondes bevat één "het geheel"-vraag (zoals 8/8 = 100%).
+De foute antwoorden worden per ronde gekozen uit typische denkfouten (zoals 3/4 → 25%,
+1/4 → 4% of 1/5 → 25%), en de plek van het goede antwoord is steeds anders.
+
 ## Spelen
 
 | Toets | Actie |
@@ -104,12 +112,15 @@ src/
 
 1. Kopieer `src/education/banks/breukenProcenten.js` naar een nieuw bestand, bijvoorbeeld
    `werkwoordspelling.js`.
-2. Pas `id`, `title`, `goal`, `instruction` en de vragen aan. Antwoorden zijn gewone
-   tekst, dus woorden kunnen ook (`['wordt', 'word', 'wort']`). Een prompt is een lijst
-   met tekst en optioneel breuken: `['Hij ', '…', ' morgen jarig.']`.
+2. Pas `id`, `title`, `goal`, `instruction` en de vragen aan. Geef per vraag een
+   `correct` antwoord en óf een vaste lijst `answers` (precies 3), óf een lijst
+   `distractors` (minstens 2 foute antwoorden, sterkste eerst; per ronde worden er 2
+   gekozen). Antwoorden zijn gewone tekst, dus woorden kunnen ook. Een prompt is een lijst
+   met tekst en optioneel breuken: `['Hij ', '…', ' morgen jarig.']`. Met `maxPerGroup` en
+   per vraag een `group` bepaal je hoeveel vragen van één soort in een ronde mogen.
 3. Registreer het bestand in `src/education/registry.js`.
-4. Draai `npm run check`: elke vraag moet precies 3 verschillende antwoorden hebben,
-   waarvan precies één juist.
+4. Draai `npm run check`: elke vraag moet geldige, unieke antwoorden hebben met precies
+   één juist antwoord.
 
 ### Geluid en muziek
 
