@@ -45,6 +45,9 @@ async function start() {
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
+      // vast element voor volledig scherm (anders verplaatst Phaser het canvas naar een nieuw div,
+      // wat bij een tweede poging een HierarchyRequestError geeft)
+      fullscreenTarget: 'game',
     },
     physics: {
       default: 'arcade',
