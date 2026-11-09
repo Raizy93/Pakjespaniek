@@ -85,16 +85,21 @@ of database nodig). Testen kan met `npm run preview`.
 
 ## Op MeesterDanny.com (JouwWeb) zetten
 
-JouwWeb kan zelf geen losse webapp-bestanden hosten. Zet daarom de inhoud van `dist/` op een
-gratis statische host en sluit die in met een iframe:
+JouwWeb kan zelf geen losse webapp-bestanden hosten. De game staat daarom op **GitHub Pages**
+en wordt in JouwWeb met een iframe ingesloten.
 
-1. Upload de inhoud van `dist/` naar bijvoorbeeld **GitHub Pages**, **Netlify** of **itch.io**
-   (als HTML5-game). Je krijgt een adres zoals `https://jouwnaam.github.io/pakjespaniek/`.
-2. Voeg in JouwWeb een blok **HTML / Embed-code** toe met:
+**Publiceren gaat automatisch:** bij elke push naar `main` bouwt GitHub de game
+(`.github/workflows/deploy.yml`), draait eerst `npm run check`, en zet het resultaat op
+<https://raizy93.github.io/Pakjespaniek/>. De voortgang zie je op GitHub onder **Actions**.
+
+Eenmalig instellen: GitHub → repository → **Settings** → **Pages** → bij *Source* kiezen voor
+**GitHub Actions**.
+
+Voeg in JouwWeb een blok **HTML / Embed-code** toe met:
 
 ```html
 <div style="position:relative;width:100%;max-width:1280px;aspect-ratio:16/9;margin:0 auto;">
-  <iframe src="https://JOUW-ADRES-HIER/"
+  <iframe src="https://raizy93.github.io/Pakjespaniek/"
           title="Pakjespaniek! – De Grote Dakenrace"
           style="position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:12px;"
           allow="autoplay; fullscreen"
