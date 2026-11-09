@@ -177,12 +177,14 @@ export default class LevelBuilder {
   buildWind() {
     for (const w of this.level.wind ?? []) {
       const dir = Math.sign(w.force);
-      const top = this.roofYAt(w.x + 30) ?? this.level.height - 200;
-      const poleX = dir > 0 ? w.x + 40 : w.x + w.w - 40;
-      const poleTop = (this.roofYAt(poleX) ?? top) - 150;
-      this.scene.add.image(poleX, poleTop, 'windsock_pole').setOrigin(0.5, 0).setDepth(14);
-      const sock = this.scene.add.image(poleX, poleTop + 8, 'windsock').setOrigin(0.04, 0.5).setDepth(15).setFlipX(dir < 0);
-      if (dir < 0) sock.setOrigin(0.96, 0.5);
+      // windzak op het eerste dak waar de wind vandaan komt, binnen de zone en niet te dicht bij de dakrand
+      const poleX = this.windsockX(w, dir);
+      let sock = null;
+      if (poleX !== null) {
+        const poleTop = this.roofYAt(poleX) - 150;
+        this.scene.add.image(poleX, poleTop, 'windsock_pole').setOrigin(0.5, 0).setDepth(14);
+        sock = this.scene.add.image(poleX, poleTop + 8, 'windsock').setOrigin(dir < 0 ? 0.96 : 0.04, 0.5).setDepth(15).setFlipX(dir < 0);
+      }
       const yMin = w.yMin ?? 120;
       const yMax = w.yMax ?? this.level.height - 60;
       const streaks = this.scene.add.particles(0, 0, 'streak', {
@@ -193,6 +195,19 @@ export default class LevelBuilder {
       }).setDepth(60);
       this.windZones.push({ ...w, on: w.on ?? 2.4, off: w.off ?? 2.0, phase: w.phase ?? 0, dir, sock, streaks, strength: 0, active: false, prewarn: false });
     }
+  }
+
+  /**
+   * Zoekt een plek voor de windzak: vanaf de kant waar de wind vandaan komt naar binnen,
+   * op een dak, minstens 30 px van de dakrand. Geeft null als er in de zone geen dak is.
+   */
+  windsockX(w, dir) {
+    const step = dir > 0 ? 10 : -10;
+    for (let x = dir > 0 ? w.x + 40 : w.x + w.w - 40; x >= w.x && x <= w.x + w.w; x += step) {
+      const b = this.level.buildings.find((bb) => x >= bb.x + 30 && x <= bb.x + bb.w - 30);
+      if (b) return x;
+    }
+    return null;
   }
 
   /** Huidige windkracht (px/s) op positie x. */
@@ -216,7 +231,7 @@ export default class LevelBuilder {
       z.strength += (target - z.strength) * Math.min(1, dt / 0.3);
       // windzak: hangt slap, of staat strak in de wind (met wat gefladder)
       const flutter = Math.sin(this.windClock * 22) * 4 * z.strength;
-      z.sock.setAngle(((1 - z.strength) * 75 + flutter) * z.dir);
+      z.sock?.setAngle(((1 - z.strength) * 75 + flutter) * z.dir);
       z.streaks.emitting = running && (z.strength > 0.25 || z.prewarn);
       z.streaks.frequency = z.prewarn && !active ? 160 : 45;
     }
