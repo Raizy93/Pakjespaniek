@@ -609,6 +609,37 @@ export function makeProps(scene) {
     facetPoly(ctx, [[6, 14], [96, 14], [96, 2], [126, 30], [96, 58], [96, 46], [6, 46]], '#a8743f', { cell: 14, light: 0.3, seed: 3, edge: '#5e4026', edgeWidth: 3 });
   });
 
+  // windzak (wijst de wind aan) en windstreep/sneeuwvlok-deeltjes
+  canvasTexture(scene, 'windsock_pole', 16, 150, (ctx) => {
+    poly(ctx, [[5, 6], [11, 6], [11, 150], [5, 150]], '#4a4860');
+    poly(ctx, [[8, 6], [11, 6], [11, 150], [8, 150]], '#6a6884');
+    facetCircle(ctx, 8, 6, 5, 5, PAL.gold, { sides: 6 });
+  });
+  canvasTexture(scene, 'windsock', 96, 40, (ctx) => {
+    // kegel van brede ring (links, aan de paal) naar smal uiteinde (rechts)
+    const seg = 4;
+    for (let i = 0; i < seg; i++) {
+      const x0 = 4 + i * 22;
+      const x1 = x0 + 22;
+      const h0 = 30 - i * 5;
+      const h1 = 30 - (i + 1) * 5;
+      const pts = [[x0, 20 - h0 / 2], [x1, 20 - h1 / 2], [x1, 20 + h1 / 2], [x0, 20 + h0 / 2]];
+      facetPoly(ctx, pts, i % 2 ? '#f4f2fa' : '#d63a32', { cell: 8, light: 0.3, seed: i });
+    }
+    poly(ctx, [[2, 4], [6, 4], [6, 36], [2, 36]], PAL.gold);
+  });
+  canvasTexture(scene, 'streak', 96, 6, (ctx) => {
+    const g = ctx.createLinearGradient(0, 0, 96, 0);
+    g.addColorStop(0, 'rgba(230,240,255,0)');
+    g.addColorStop(0.5, 'rgba(240,246,255,0.95)');
+    g.addColorStop(1, 'rgba(230,240,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 1.5, 96, 3);
+  });
+  canvasTexture(scene, 'snowflake', 10, 10, (ctx) => {
+    poly(ctx, [[5, 0], [7, 3], [10, 5], [7, 7], [5, 10], [3, 7], [0, 5], [3, 3]], 'rgba(244,247,255,0.95)');
+  });
+
   // vogel (2 frames)
   const bird = (key, up) =>
     canvasTexture(scene, key, 48, 32, (ctx) => {
@@ -626,6 +657,30 @@ export function makeProps(scene) {
 /** Platformtexture op maat (plank, schommel of rijdend karretje). */
 export function makePlatformTexture(scene, type, w) {
   const key = `plat_${type}_${w}`;
+  if (type === 'crumble') {
+    // losse dakpannen met barsten: zakt weg als je erop blijft staan
+    canvasTexture(scene, key, w, 30, (ctx) => {
+      facetRect(ctx, 0, 6, w, 16, shade(PAL.tile, -0.3), { cell: 10, seed: w + 3 });
+      const tw = 22;
+      for (let tx = 0; tx < w; tx += tw) {
+        const pts = [[tx, 2], [tx + tw - 2, 2], [tx + tw - 2, 14], [tx + tw * 0.7, 20], [tx + tw * 0.25, 20], [tx, 14]];
+        poly(ctx, pts, shade(PAL.tile, ((tx / tw) % 2 ? -0.08 : 0.06)), shade(PAL.tile, -0.4), 1);
+      }
+      ctx.strokeStyle = 'rgba(30,8,8,0.75)';
+      ctx.lineWidth = 1.6;
+      for (let cx = 14; cx < w - 6; cx += 37) {
+        ctx.beginPath();
+        ctx.moveTo(cx, 3);
+        ctx.lineTo(cx + 5, 9);
+        ctx.lineTo(cx + 1, 14);
+        ctx.lineTo(cx + 7, 20);
+        ctx.stroke();
+      }
+      ctx.fillStyle = shade(PAL.tile, 0.3);
+      ctx.fillRect(0, 1, w, 2);
+    });
+    return key;
+  }
   const h = type === 'mover' ? 40 : 26;
   canvasTexture(scene, key, w, h, (ctx) => {
     facetRect(ctx, 0, 0, w, 20, PAL.wood, { cell: 12, light: 0.3, seed: w });

@@ -33,7 +33,7 @@ export default class QuizPanel {
     const bh = 150;
     this.bubble = this.track(scene.add.container(cx, 18).setScrollFactor(0).setDepth(DEPTH));
     const bImg = scene.add.image(0, 0, bubbleKey(scene, bw, bh)).setOrigin(0.5, 0);
-    const instr = makeText(scene, 0, 26, bank.instruction ?? 'Kies het juiste cadeau', { size: 20, color: '#5a4a7a', weight: '600' });
+    const instr = makeText(scene, 0, 26, question.instruction ?? bank.instruction ?? 'Kies het juiste cadeau', { size: 20, color: '#5a4a7a', weight: '600' });
     const prompt = makePrompt(scene, question.prompt, 0, 88, { size: 56, color: '#1b2552' });
     this.bubble.add([bImg, instr, prompt]);
     this.bubble.setScale(0.6).setAlpha(0);
@@ -52,9 +52,13 @@ export default class QuizPanel {
       const c = scene.add.container(x, gy + 40).setScrollFactor(0).setDepth(DEPTH).setAlpha(0);
       const ring = scene.add.image(0, 6, 'glow').setTint(0xffd66b).setScale(1.9).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD);
       const img = scene.add.image(0, 0, `gift_${GIFT_COLORS[i]}`).setScale(0.9);
-      const label = makeText(scene, 1, 18, answer, {
-        size: answer.length > 4 ? 30 : 36, color: '#ffffff', weight: '700', stroke: '#0b1433', strokeThickness: 5,
-      });
+      // breuk als antwoord ("3/4") → echte, gestapelde breuk op het cadeau
+      const fm = /^(\d+)\/(\d+)$/.exec(answer);
+      const label = fm
+        ? makePrompt(scene, [{ frac: [fm[1], fm[2]] }], 1, 18, { size: 42, color: '#ffffff', stroke: '#0b1433' })
+        : makeText(scene, 1, 18, answer, {
+          size: answer.length > 4 ? 30 : 36, color: '#ffffff', weight: '700', stroke: '#0b1433', strokeThickness: 5,
+        });
       const key = scene.add.image(-50, -42, 'keycap').setScale(0.62);
       const keyText = makeText(scene, -50, -45, String(i + 1), { size: 22, color: '#1b2552', weight: '700' });
       c.add([ring, img, label, key, keyText]);

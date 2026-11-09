@@ -41,6 +41,7 @@ export const METRICS = {
   safeGap: 170, // comfortabel haalbaar voor kinderen
   maxStepUp: 135, // comfortabele maximale stap omhoog
   maxRisingGapEffort: 165, // gat + stijging samen (vergevingsgezind voor groep 7–8)
+  windGap: 130, // maximaal gat binnen een windzone (je kunt wachten op windstilte, maar toch)
 };
 
 export const CAMERA = {

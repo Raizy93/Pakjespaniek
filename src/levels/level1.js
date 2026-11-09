@@ -15,6 +15,13 @@ export default {
   world: 'Wereld 1',
   number: 1,
   tagline: 'Ren over de daken van het dorp',
+  // leerlijn: start met halven, kwarten en tienden
+  learning: {
+    title: 'Halven, kwarten en tienden',
+    groups: ['/2', '/4', '/10'],
+    excludeTags: ['geheel'],
+    maxPerGroup: 6, // weinig noemers: anders lukt een ronde van 8 verschillende antwoorden niet altijd
+  },
   width: 11300,
   height: 720,
   spawn: { x: 150 },

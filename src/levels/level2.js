@@ -19,6 +19,12 @@ const level = {
   world: 'Wereld 1',
   number: 2,
   tagline: 'Klim omhoog en kijk niet naar beneden!',
+  // leerlijn: erbij komen vijfden en het geheel (3/3, 10/10 … = 100%)
+  learning: {
+    title: 'Erbij: vijfden en het geheel',
+    groups: ['/2', '/4', '/5', '/10'],
+    maxPerGroup: 4,
+  },
   width: 10100,
   height: 1260,
   spawn: { x: 150 },

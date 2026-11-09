@@ -40,10 +40,11 @@ export default class GameScene extends Phaser.Scene {
     this.physics.resume();
 
     this.createBackground();
+    this.createWeather();
     this.world = new LevelBuilder(this, L).build();
 
     // vragen: willekeurige volgorde en antwoordposities per ronde
-    const round = createRound(this.bank, L.chimneys.length);
+    const round = createRound(this.bank, L.chimneys.length, Math.random, L.learning ?? {});
     this.tracker = new ResultsTracker(L.chimneys.length);
     this.tracker.pepernotenTotal = L.pepernoten.length;
 
@@ -150,6 +151,32 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Levelthema: 'storm' (donkerder, veel sneeuw) of 'snow' (lichte sneeuwval). */
+  createWeather() {
+    const theme = this.level.theme;
+    this.snowWind = 0;
+    if (!theme) return;
+    if (theme === 'storm') {
+      // iets donkerdere, koudere lucht
+      this.add.rectangle(0, 0, VIEW.width, VIEW.height, 0x0a1030, 0.28).setOrigin(0).setScrollFactor(0).setDepth(-93);
+    }
+    const heavy = theme === 'storm';
+    this.snow = this.add.particles(0, 0, 'snowflake', {
+      x: { min: -200, max: VIEW.width + 200 }, y: -10,
+      speedY: { min: heavy ? 70 : 40, max: heavy ? 140 : 80 },
+      speedX: { onEmit: () => -20 + this.snowWind * 1.4 + Phaser.Math.Between(-15, 15) },
+      scale: { min: 0.4, max: heavy ? 1.2 : 0.9 }, alpha: { min: 0.5, max: 0.95 },
+      lifespan: 9000, frequency: heavy ? 22 : 70, quantity: 1, rotate: { min: 0, max: 360 },
+    }).setScrollFactor(0).setDepth(55);
+  }
+
+  updateWeather() {
+    if (!this.snow) return;
+    // sneeuw waait mee met de wind die rond het midden van het beeld staat
+    const cx = this.cameras.main.scrollX + VIEW.width / 2;
+    this.snowWind = this.world.windAt(cx);
+  }
+
   spawnBird() {
     if (this.state === STATE.FINISH) return;
     const cam = this.cameras.main;
@@ -195,10 +222,12 @@ export default class GameScene extends Phaser.Scene {
     const dt = Math.min(delta, 50) / 1000;
     const input = this.readInput();
     this.world.updateMovers(dt);
+    const gust = this.world.updateWind(dt, this.state === STATE.PLAY);
+    if (gust && Math.abs(this.player.x - (gust.x + gust.w / 2)) < gust.w / 2 + 500) AudioManager.play('wind');
 
     if (this.state === STATE.PLAY) {
       this.tracker.timeMs += delta;
-      this.player.update(dt, input);
+      this.player.update(dt, input, this.world.windAt(this.player.x));
       this.updateChimneyProximity(input);
       this.updateCheckpoints();
       this.checkFinish();
@@ -212,6 +241,7 @@ export default class GameScene extends Phaser.Scene {
 
     if (this.state !== STATE.QUIZ && this.state !== STATE.DELIVER) this.updateCamera(dt);
     this.updateBackground(dt);
+    this.updateWeather(dt);
   }
 
   updateCamera(dt) {
@@ -260,7 +290,10 @@ export default class GameScene extends Phaser.Scene {
       }
       return;
     }
-    if (this.player.body.touching.down || this.player.body.blocked.down) this.player.surface = solid.getData('surface') ?? 'normal';
+    const standing = this.player.body.touching.down || this.player.body.blocked.down;
+    if (standing) this.player.surface = solid.getData('surface') ?? 'normal';
+    const crumble = solid.getData('crumble');
+    if (crumble && standing && this.world.triggerCrumble(crumble)) AudioManager.play('crumble');
   }
 
   onLand(vy) {

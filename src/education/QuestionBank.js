@@ -65,52 +65,80 @@ export function weightedPick(list, n, random = Math.random) {
   return out;
 }
 
+
 /**
- * Kiest `count` vragen voor een ronde: willekeurig, zonder twee vragen met
- * hetzelfde antwoord, en (indien ingesteld) hooguit `maxPerGroup` per groep.
+ * Filtert de vragen van een bank volgens een leerlijn-spec (per level):
+ *   groups      – toegestane groepen (bijv. ['/2', '/4', '/10']); weglaten = alle
+ *   excludeTags – vragen met één van deze tags overslaan (bijv. ['geheel'])
  */
-function pickQuestions(bank, count, random) {
-  const maxPerGroup = bank.maxPerGroup ?? Infinity;
+export function questionsForSpec(bank, spec = {}) {
+  return bank.questions.filter((q) => {
+    if (spec.groups && !spec.groups.includes(q.group)) return false;
+    if (spec.excludeTags && (q.tags ?? []).some((t) => spec.excludeTags.includes(t))) return false;
+    return true;
+  });
+}
+
+/**
+ * Kiest `count` vragen uit `pool`: gewogen willekeurig, zonder twee vragen met
+ * hetzelfde antwoord, en hooguit `maxPerGroup` per groep. `state` wordt gedeeld
+ * tussen soorten vragen, zodat die regels voor de hele ronde gelden.
+ */
+function pickQuestions(pool, count, random, maxPerGroup, state) {
   // gewogen husselen: een vraag met `weight` < 1 komt minder vaak vooraan (Efraimidis–Spirakis)
-  const pool = bank.questions
+  const ordered = pool
     .map((q) => ({ q, key: Math.pow(random(), 1 / (q.weight ?? 1)) }))
     .sort((a, b) => b.key - a.key)
     .map((e) => e.q);
   const picked = [];
-  const answersUsed = new Set();
-  const perGroup = new Map();
-  for (const q of pool) {
+  for (const q of ordered) {
     if (picked.length >= count) break;
     const key = q.value !== undefined ? String(Math.round(q.value * 1000)) : norm(q.correct);
     const g = q.group ?? '';
-    if (answersUsed.has(key) || (perGroup.get(g) ?? 0) >= maxPerGroup) continue;
+    if (state.answersUsed.has(key) || (state.perGroup.get(g) ?? 0) >= maxPerGroup) continue;
     picked.push(q);
-    answersUsed.add(key);
-    perGroup.set(g, (perGroup.get(g) ?? 0) + 1);
-  }
-  // te strenge regels voor deze bank? vul dan aan met de rest
-  for (const q of pool) {
-    if (picked.length >= count) break;
-    if (!picked.includes(q)) picked.push(q);
+    state.answersUsed.add(key);
+    state.perGroup.set(g, (state.perGroup.get(g) ?? 0) + 1);
   }
   return picked;
 }
 
 /**
  * Maakt een speelronde: vragen in willekeurige volgorde, per vraag 3 antwoorden
- * (bij distractors: 2 willekeurig gekozen foute) in willekeurige volgorde.
+ * (bij distractors: 2 gekozen foute) in willekeurige volgorde.
  * Het juiste antwoord blijft expliciet bewaard (correctIndex + correct).
+ *
+ * spec (optioneel, per level): groups, excludeTags, maxPerGroup en
+ * mix – aantal vragen per soort, bijv. { forward: 5, reverse: 3 }.
+ * Zonder mix worden alleen gewone vragen (soort 'forward') gebruikt.
  */
-export function createRound(bank, count, random = Math.random) {
+export function createRound(bank, count, random = Math.random, spec = {}) {
   const errors = validateBank(bank);
   if (errors.length) {
     throw new Error(`Vragenbank "${bank?.id}" is ongeldig:\n${errors.join('\n')}`);
   }
-  return pickQuestions(bank, count, random).map((q) => {
+  const pool = questionsForSpec(bank, spec);
+  const maxPerGroup = spec.maxPerGroup ?? bank.maxPerGroup ?? Infinity;
+  const mix = spec.mix ?? { forward: count };
+  const state = { answersUsed: new Set(), perGroup: new Map() };
+  let picked = [];
+  for (const [kind, n] of Object.entries(mix)) {
+    picked.push(...pickQuestions(pool.filter((q) => (q.kind ?? 'forward') === kind), n, random, maxPerGroup, state));
+  }
+  // te strenge regels voor deze pool? vul dan aan, eerst zonder groepslimiet
+  if (picked.length < count) {
+    const rest = pool.filter((q) => !picked.includes(q) && Object.keys(mix).includes(q.kind ?? 'forward'));
+    picked.push(...pickQuestions(rest, count - picked.length, random, Infinity, state));
+  }
+  picked = shuffle(picked, random).slice(0, count);
+
+  return picked.map((q) => {
     const options = q.answers ?? [q.correct, ...weightedPick(q.distractors, 2, random)];
     const answers = shuffle(options, random);
     return {
       id: q.id,
+      kind: q.kind ?? 'forward',
+      instruction: q.instruction ?? null,
       prompt: q.prompt,
       text: q.text,
       answers,

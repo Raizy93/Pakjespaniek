@@ -53,11 +53,11 @@ export default class LevelSelectScene extends Phaser.Scene {
     const x1 = n === 1 ? W / 2 : W - 260;
     this.nodePos = this.progress.map((_, i) => {
       const t = n === 1 ? 0.5 : i / (n - 1);
-      return { x: x0 + (x1 - x0) * t, y: 300 + Math.sin(t * Math.PI * 1.3 + 0.4) * 40 };
+      // licht golvend pad; laag genoeg boven het infopaneel (naam + sterren onder het bordje)
+      return { x: x0 + (x1 - x0) * t, y: 268 + Math.sin(t * Math.PI * 1.3 + 0.4) * 24 };
     });
     this.drawPath();
     this.nodes = this.progress.map((p, i) => this.makeNode(p, i));
-    makeText(this, W / 2, 420, 'Er komen nog meer levels aan!', { size: 18, weight: '500', color: '#8f99d0' });
 
     // het gekozen personage loopt over het pad
     this.hero = this.add.sprite(0, 0, this.characterId, 'idle_0').setOrigin(0.5, CHAR_FRAME.foot / CHAR_FRAME.h).setScale(0.9).setDepth(20);
@@ -66,12 +66,14 @@ export default class LevelSelectScene extends Phaser.Scene {
     // infopaneel
     this.info = this.add.container(W / 2, 560);
     this.info.add(this.add.image(0, 0, panelKey(this, 720, 190)));
-    this.infoTitle = makeText(this, -320, -56, '', { size: 32, weight: '700', color: '#f2b632', origin: [0, 0.5] });
-    this.infoTag = makeText(this, -320, -14, '', { size: 20, weight: '500', color: '#dfe4ff', origin: [0, 0.5] });
-    this.infoBest = makeText(this, -320, 30, '', { size: 19, weight: '600', color: '#aab4e0', origin: [0, 0.5] });
-    this.infoStars = [0, 1, 2].map((k) => this.add.image(-300 + k * 44, 64, 'star_empty').setScale(0.4));
+    this.infoTitle = makeText(this, -320, -62, '', { size: 32, weight: '700', color: '#f2b632', origin: [0, 0.5] });
+    this.infoTag = makeText(this, -320, -26, '', { size: 20, weight: '500', color: '#dfe4ff', origin: [0, 0.5] });
+    // leerlijn: wat er in dit level geoefend wordt
+    this.infoLearn = makeText(this, -320, 8, '', { size: 19, weight: '600', color: '#9ff0b0', origin: [0, 0.5], wrap: 420, align: 'left' });
+    this.infoStars = [0, 1, 2].map((k) => this.add.image(-300 + k * 44, 54, 'star_empty').setScale(0.4));
+    this.infoBest = makeText(this, -160, 54, '', { size: 18, weight: '600', color: '#aab4e0', origin: [0, 0.5] });
     this.playBtn = new Button(this, 210, 0, 'Spelen', { width: 220, height: 70, variant: 'red', size: 34, onClick: () => this.play() });
-    this.info.add([this.infoTitle, this.infoTag, this.infoBest, ...this.infoStars, this.playBtn]);
+    this.info.add([this.infoTitle, this.infoTag, this.infoLearn, this.infoBest, ...this.infoStars, this.playBtn]);
 
     this.backBtn = new Button(this, 110, H - 44, 'Terug', { width: 170, height: 52, variant: 'navy', size: 22, onClick: () => this.back() });
 
@@ -97,19 +99,18 @@ export default class LevelSelectScene extends Phaser.Scene {
   drawPath() {
     const g = this.add.graphics();
     const pts = this.nodePos;
-    // gestippeld pad van bordje naar bordje (en een stukje verder "naar nieuwe levels")
-    const all = [...pts, { x: pts[pts.length - 1].x + 140, y: pts[pts.length - 1].y + 60 }];
-    for (let i = 0; i < all.length - 1; i++) {
-      const a = all[i];
-      const b = all[i + 1];
+    // gestippeld pad van bordje naar bordje; goud tot het laatste open level
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i];
+      const b = pts[i + 1];
+      const open = this.progress[i + 1].unlocked;
       const steps = Math.floor(Math.hypot(b.x - a.x, b.y - a.y) / 22);
       for (let s = 1; s < steps; s++) {
         const t = s / steps;
         const x = a.x + (b.x - a.x) * t;
         const y = a.y + (b.y - a.y) * t - Math.sin(t * Math.PI) * 30;
-        const future = i === all.length - 2;
-        g.fillStyle(future ? 0x5b6190 : 0xf2b632, future ? 0.5 : 0.85);
-        g.fillCircle(x, y, future ? 4 : 5);
+        g.fillStyle(open ? 0xf2b632 : 0x5b6190, open ? 0.85 : 0.5);
+        g.fillCircle(x, y, open ? 5 : 4);
       }
     }
   }
@@ -172,6 +173,7 @@ export default class LevelSelectScene extends Phaser.Scene {
     // infopaneel
     this.infoTitle.setText(`Level ${p.level.number} · ${p.level.name}`);
     this.infoTag.setText(p.unlocked ? p.level.tagline ?? '' : `Speel eerst level ${p.level.number - 1} uit om dit level te openen.`);
+    this.infoLearn.setText(p.level.learning?.title ? `Rekenen: ${p.level.learning.title}` : '');
     this.infoBest.setText(p.best ? `Beste: ${p.best.points} punten` : p.unlocked ? 'Nog niet gespeeld' : 'Op slot');
     this.infoStars.forEach((s, k) => s.setTexture(p.best && k < p.best.stars ? 'star_full' : 'star_empty').setAlpha(p.unlocked ? 1 : 0.4));
     this.playBtn.enabled = p.unlocked;

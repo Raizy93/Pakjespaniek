@@ -392,6 +392,15 @@ class AudioManagerClass {
       case 'respawn':
         this.tone(392, 0.25, { type: 'sine', vol: 0.2, slide: 300 });
         break;
+      case 'wind':
+        // aanzwellende windvlaag (gefilterde ruis)
+        this.noiseBurst(1.6, { vol: 0.18, from: 400, to: 1400, type: 'bandpass' });
+        this.noiseBurst(1.2, { vol: 0.1, from: 900, to: 300, type: 'bandpass', delay: 0.5 });
+        break;
+      case 'crumble':
+        this.noiseBurst(0.18, { vol: 0.28, from: 1800, to: 400, type: 'bandpass' });
+        this.tone(140, 0.2, { type: 'triangle', vol: 0.15, slide: -50, delay: 0.05 });
+        break;
       case 'gate':
         this.noiseBurst(0.25, { vol: 0.12, from: 3000, to: 6000, type: 'highpass' });
         this.tone(1047, 0.25, { type: 'triangle', vol: 0.14, delay: 0.05 });

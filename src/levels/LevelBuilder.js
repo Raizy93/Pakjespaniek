@@ -14,11 +14,15 @@ export default class LevelBuilder {
     this.lanternGlows = [];
     this.checkpoints = [];
     this.signs = [];
+    this.crumbles = [];
+    this.windZones = [];
+    this.windClock = 0;
   }
 
   build() {
     this.buildBuildings();
     this.buildPlatforms();
+    this.buildWind();
     this.buildProps();
     this.buildPepernoten();
     this.buildCheckpoints();
@@ -60,8 +64,15 @@ export default class LevelBuilder {
 
   buildPlatforms() {
     for (const p of this.level.platforms) {
-      const key = makePlatformTexture(this.scene, p.type === 'mover' ? 'mover' : 'plank', p.w);
-      if (p.type === 'mover') {
+      const key = makePlatformTexture(this.scene, { mover: 'mover', crumble: 'crumble' }[p.type] ?? 'plank', p.w);
+      if (p.type === 'crumble') {
+        // afbrokkelende dakpannen: zakken weg kort nadat je erop staat, komen later terug
+        const img = this.scene.add.image(p.x, p.y - 2, key).setOrigin(0).setDepth(30);
+        const zone = this.addSolid(p.x, p.y, p.w, 18, { oneWay: true });
+        const c = { zone, img, x: p.x, y: p.y - 2, state: 'idle' };
+        zone.setData('crumble', c);
+        this.crumbles.push(c);
+      } else if (p.type === 'mover') {
         const img = this.scene.physics.add.image(p.x, p.y, key).setOrigin(0).setDepth(30);
         img.body.setAllowGravity(false);
         img.body.setImmovable(true);
@@ -157,7 +168,81 @@ export default class LevelBuilder {
     this.finishY = top;
   }
 
-  /** Movers heen en weer laten bewegen. */
+  // ------------------------------------------------------------------ wind
+  /**
+   * Windzones: { x, w, force (px/s, + = naar rechts), on, off, phase, yMin, yMax }.
+   * De wind waait in vlagen (on seconden aan, off uit). Een windzak en windstrepen
+   * kondigen een vlaag ~0,8 s van tevoren aan (game-feel: telegraferen).
+   */
+  buildWind() {
+    for (const w of this.level.wind ?? []) {
+      const dir = Math.sign(w.force);
+      const top = this.roofYAt(w.x + 30) ?? this.level.height - 200;
+      const poleX = dir > 0 ? w.x + 40 : w.x + w.w - 40;
+      const poleTop = (this.roofYAt(poleX) ?? top) - 150;
+      this.scene.add.image(poleX, poleTop, 'windsock_pole').setOrigin(0.5, 0).setDepth(14);
+      const sock = this.scene.add.image(poleX, poleTop + 8, 'windsock').setOrigin(0.04, 0.5).setDepth(15).setFlipX(dir < 0);
+      if (dir < 0) sock.setOrigin(0.96, 0.5);
+      const yMin = w.yMin ?? 120;
+      const yMax = w.yMax ?? this.level.height - 60;
+      const streaks = this.scene.add.particles(0, 0, 'streak', {
+        x: { min: w.x, max: w.x + w.w }, y: { min: yMin, max: yMax },
+        speedX: { min: dir * 650, max: dir * 850 }, speedY: { min: -20, max: 20 },
+        scaleX: { min: 0.8, max: 2 }, alpha: { start: 0.65, end: 0 }, lifespan: 700,
+        frequency: 45, quantity: 2, emitting: false,
+      }).setDepth(60);
+      this.windZones.push({ ...w, on: w.on ?? 2.4, off: w.off ?? 2.0, phase: w.phase ?? 0, dir, sock, streaks, strength: 0, active: false, prewarn: false });
+    }
+  }
+
+  /** Huidige windkracht (px/s) op positie x. */
+  windAt(x) {
+    for (const z of this.windZones) if (x >= z.x && x <= z.x + z.w) return z.force * z.strength;
+    return 0;
+  }
+
+  /** @returns {object|null} de zone waarin net een vlaag begint (voor geluid) */
+  updateWind(dt, running) {
+    if (running) this.windClock += dt;
+    let gust = null;
+    for (const z of this.windZones) {
+      const cycle = z.on + z.off;
+      const t = (((this.windClock + z.phase) % cycle) + cycle) % cycle;
+      const active = t < z.on;
+      if (active && !z.active) gust = z;
+      z.active = active;
+      z.prewarn = !active && cycle - t < 0.8;
+      const target = active ? 1 : 0;
+      z.strength += (target - z.strength) * Math.min(1, dt / 0.3);
+      // windzak: hangt slap, of staat strak in de wind (met wat gefladder)
+      const flutter = Math.sin(this.windClock * 22) * 4 * z.strength;
+      z.sock.setAngle(((1 - z.strength) * 75 + flutter) * z.dir);
+      z.streaks.emitting = running && (z.strength > 0.25 || z.prewarn);
+      z.streaks.frequency = z.prewarn && !active ? 160 : 45;
+    }
+    return gust;
+  }
+
+  // ------------------------------------------------------------------ brokkelpannen
+  /** @returns {boolean} true als de dakpannen nu gaan brokkelen */
+  triggerCrumble(c) {
+    if (c.state !== 'idle') return false;
+    c.state = 'shaking';
+    const scene = this.scene;
+    scene.tweens.add({ targets: c.img, x: { from: c.x - 2, to: c.x + 2 }, duration: 50, yoyo: true, repeat: 4 });
+    scene.time.delayedCall(480, () => {
+      c.state = 'gone';
+      c.zone.body.enable = false;
+      scene.tweens.add({ targets: c.img, y: c.y + 90, alpha: 0, angle: 8, duration: 450, ease: 'Quad.In' });
+    });
+    scene.time.delayedCall(3200, () => {
+      c.zone.body.enable = true;
+      c.img.setPosition(c.x, c.y).setAngle(0);
+      scene.tweens.add({ targets: c.img, alpha: 1, duration: 300, onComplete: () => { c.state = 'idle'; } });
+    });
+    return true;
+  }
+
   /** Movers heen en weer laten bewegen, met een korte pauze aan elk uiteinde. */
   updateMovers(dt = 1 / 60) {
     if (this.scene.physics.world.isPaused) return;

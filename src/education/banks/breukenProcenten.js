@@ -86,6 +86,48 @@ function distractorsFor(k, n) {
     .filter((s) => s !== formatPercent(p) && !seen.has(s) && seen.add(s));
 }
 
+// ------------------------------------------------------------------ omgekeerd: procent → breuk
+
+/** Breuk als tekst "3/4" en terug naar een getal (procent). */
+export const fracText = (a, b) => `${a}/${b}`;
+export function parseFrac(s) {
+  const [a, b] = s.split('/').map(Number);
+  return (a / b) * 100;
+}
+
+function reverseExplanation(k, n, pct) {
+  if (n === 3) return k === 1 ? '100 : 3 = 33,3…, dus 33,3% is ongeveer 1/3.' : '200 : 3 = 66,7…, dus 66,7% is ongeveer 2/3.';
+  if (n === 8) return k === 1 ? '12,5% is de helft van 25% (= 1/4), dus 1/8.' : `${pct} = ${k} × 12,5%, dus ${k}/8.`;
+  return `${pct} = ${(k / n) * 100}/100 = ${k}/${n}.`;
+}
+
+/**
+ * Foute breuken voor "procent → breuk", op basis van denkfouten:
+ * cijfers als breuk (25% → 2/5), 1 gedeeld door het getal (25% → 1/25),
+ * het complement (75% ↔ 1/4), buur-breuken en een verwisselde noemer.
+ */
+function reverseDistractors(k, n) {
+  const p = (k / n) * 100;
+  const cands = [];
+  const add = (a, b) => {
+    if (Number.isInteger(a) && Number.isInteger(b) && a > 0 && b > a) cands.push([a, b]);
+  };
+  if (Number.isInteger(p) && p >= 10 && p < 100) add(Math.floor(p / 10), p % 10); // 25% → 2/5
+  if (Number.isInteger(p) && p <= 50) add(1, p); // 25% → 1/25
+  add(n - k, n); // complement
+  add(k + 1, n);
+  add(k - 1, n);
+  for (const m of DENOMINATORS) if (m !== n) add(k, m); // zelfde teller, andere noemer
+  const seen = new Set();
+  return cands
+    .filter(([a, b]) => Math.abs((a / b) * 100 - p) >= 4)
+    .filter(([a, b]) => {
+      const key = Math.round((a / b) * 1000); // geen twee foute antwoorden met dezelfde waarde
+      return !seen.has(key) && seen.add(key);
+    })
+    .map(([a, b]) => fracText(a, b));
+}
+
 function buildQuestions() {
   const list = [];
   for (const n of DENOMINATORS) {
@@ -95,6 +137,7 @@ function buildQuestions() {
       const correct = formatPercent(value);
       list.push({
         id: `bp-${k}-${n}`,
+        kind: 'forward',
         prompt: [{ frac: [k, n] }, ' = … %'],
         text: `${k}/${n} = …%`,
         correct,
@@ -102,9 +145,28 @@ function buildQuestions() {
         explanation: explanationFor(k, n, correct),
         value,
         group: `/${n}`,
+        tags: k === n ? ['geheel'] : [],
         // hele breuken (100%) wat minder vaak, zodat niet elke ronde er één heeft
         weight: k === n ? 0.22 : 1,
       });
+      // omgekeerde vraag (alleen vereenvoudigde breuken, zodat het antwoord eenduidig is)
+      if (k < n && gcd(k, n) === 1) {
+        const pct = formatPercent(value);
+        list.push({
+          id: `bp-r-${k}-${n}`,
+          kind: 'reverse',
+          instruction: 'Welke breuk hoort bij dit percentage?',
+          prompt: [`${pct} = `, { frac: ['?', '?'] }],
+          text: `${pct} = …/…`,
+          correct: fracText(k, n),
+          distractors: reverseDistractors(k, n),
+          explanation: reverseExplanation(k, n, pct),
+          value,
+          group: `/${n}`,
+          tags: ['omgekeerd'],
+          weight: 1,
+        });
+      }
     }
   }
   return list;

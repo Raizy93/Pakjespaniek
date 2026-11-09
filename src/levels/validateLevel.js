@@ -36,6 +36,14 @@ export function validateLevel(level) {
     if (gap > 0 && effort > METRICS.maxRisingGapEffort) {
       errors.push(`Gat ${gap}px + stijging naar ${next.name} is te lastig (${effort} > ${METRICS.maxRisingGapEffort})`);
     }
+    // in een windzone mogen gaten minder breed zijn
+    const mid = cur.right + gap / 2;
+    const windy = (level.wind ?? []).some((w) => Math.abs(w.force) >= 60 && mid >= w.x && mid <= w.x + w.w);
+    if (gap > 0 && windy && gap > METRICS.windGap) errors.push(`Gat van ${gap}px bij ${next.name} ligt in de wind (max ${METRICS.windGap})`);
+    // vóór een gat waar je op windstilte moet wachten, mag het dak niet glad zijn
+    const headwindAhead = (level.wind ?? []).some((w) => w.force <= -60 && next.left >= w.x && next.left <= w.x + w.w);
+    const curBuilding = level.buildings.find((b) => b.x === cur.left);
+    if (gap > 40 && headwindAhead && curBuilding?.roof === 'ice') errors.push(`${cur.name}: glad dak vlak voor tegenwind (je kunt niet stilstaan om te wachten)`);
   }
 
   const buildingAt = (x) => level.buildings.find((b) => x >= b.x && x <= b.x + b.w);

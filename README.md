@@ -9,6 +9,9 @@ rekenopdracht op te lossen. Beide personages lopen en springen precies hetzelfde
 
 **Leerdoel (versie 1):** Ik kan veelvoorkomende breuken omzetten naar procenten.
 
+Naast "breuk → procent" zijn er omgekeerde vragen ("37,5% = …/…", antwoorden als breuk),
+met foute antwoorden uit denkfouten zoals 25% → 2/5 of 25% → 1/25.
+
 De vragenpool bevat alle basale breuken met noemer 2, 3, 4, 5, 8 en 10 en hun veelvouden
 (32 breuken, van 1/2 tot en met 10/10; ook het geheel, zoals 3/3 = 100%). Derden staan als kommagetal op één decimaal: 1/3 = 33,3%
 en 2/3 = 66,7%. Elke speelronde kiest daar willekeurig 8 uit:
@@ -19,10 +22,15 @@ De foute antwoorden worden per ronde gekozen uit typische denkfouten (zoals 3/4 
 
 ## Levels
 
-| Level | Naam | Nieuw |
-|---|---|---|
-| 1 | Het Sinterklaasdorp | Lopen, springen, rijdende plankjes, glad ijs |
-| 2 | Hoge Daken | Hoogteverschillen: klimmen, grote sprongen omlaag en liften; de camera volgt ook omhoog |
+| Level | Naam | Nieuw in het spel | Rekenen (leerlijn) |
+|---|---|---|---|
+| 1 | Het Sinterklaasdorp | Lopen, springen, rijdende plankjes, glad ijs | Halven, kwarten en tienden |
+| 2 | Hoge Daken | Klimmen, grote sprongen omlaag, liften; camera volgt ook omhoog | Erbij: vijfden en het geheel (3/3 = 100%) |
+| 3 | De Winterstorm | Windvlagen (windzak en windstrepen kondigen ze aan), sneeuwstorm | Erbij: achtsten en derden |
+| 4 | De Laatste Bezorging | Brokkelpannen die wegzakken, alles gecombineerd, huis van de Sint | Alles door elkaar + omgekeerd: "75% = …/…" (5 gewone + 3 omgekeerde vragen) |
+
+De leerlijn staat per level in `learning` in het levelbestand (welke noemers, hoeveel per
+noemer, en de verdeling gewone/omgekeerde vragen). De levelkaart toont wat er geoefend wordt.
 
 Na **Spelen** kiest de leerling een personage en daarna een level op de **levelkaart**.
 Een level gaat open zodra het vorige is uitgespeeld (met elk aantal sterren). De kaart toont

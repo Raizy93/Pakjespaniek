@@ -147,8 +147,11 @@ function createBot(game, wrongOn) {
       .sort((a, c) => a.l - c.l)[0];
     // niet van een dalende lift af springen, en niet op een dalende lift springen: wacht op de pauze
     const descending = (cur.mover && cur.vy > 1) || (target?.mover && target.vy > 1 && target.t > cur.t);
+    // tegenwind (of een vlaag die eraan komt): aan de rand wachten op windstilte
+    const windy = (x) => s.world.windAt(x) < -25 || s.world.windZones.some((z) => z.force < 0 && z.prewarn && x >= z.x && x <= z.x + z.w);
+    const headwind = target && (windy(p.x) || windy(target.l + 10));
     // op een lift: kort sprongetje (een volle sprong schiet eroverheen)
-    if (target && !descending) jump(Boolean(target.mover) && Math.abs(target.t - cur.t) < 60);
+    if (target && !descending && !headwind) jump(Boolean(target.mover) && Math.abs(target.t - cur.t) < 60);
     else set('KeyD', p.x < edge - 14); // wachten op een plankje
   }
 

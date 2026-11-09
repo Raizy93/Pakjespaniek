@@ -45,8 +45,8 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     return `${this.characterId}-${name}`;
   }
 
-  /** input: { left, right, jumpDown, jumpPressed, jumpReleased } */
-  update(dt, input) {
+  /** input: { left, right, jumpDown, jumpPressed, jumpReleased }; wind: duw in px/s (+ = naar rechts) */
+  update(dt, input, wind = 0) {
     const b = this.body;
     const onFloor = this.onFloor;
 
@@ -76,7 +76,11 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     } else {
       rate = ice ? PLAYER.iceDecel : onFloor ? PLAYER.groundDecel : PLAYER.airDecel;
     }
-    b.setVelocityX(approach(vx, dir * PLAYER.runSpeed, rate * dt));
+    // wind verschuift de doelsnelheid: tegenwind remt en duwt terug, rugwind versnelt
+    // (stilstaand duwt de wind zachter, zodat je niet zomaar van een rand waait)
+    const push = dir === 0 ? wind * 0.35 : wind;
+    b.setVelocityX(approach(vx, dir * PLAYER.runSpeed + push, rate * dt));
+    this.inputDir = dir;
     if (dir !== 0) {
       this.facing = dir;
       this.setFlipX(dir < 0);
@@ -122,7 +126,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       this.play(this.body.velocity.y < 0 ? this.anim('jump') : this.anim('fall'), true);
     } else if (this.landTimer > 0) {
       this.play(this.anim('land'), true);
-    } else if (vx > 25) {
+    } else if (vx > 25 && (this.inputDir !== 0 || vx > 80)) {
       this.play(this.anim('run'), true);
       this.anims.timeScale = Phaser.Math.Clamp(vx / 300, 0.6, 1.2);
       return;
