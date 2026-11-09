@@ -7,7 +7,8 @@ import { makeText } from '../ui/text.js';
 import { AudioManager } from '../systems/AudioManager.js';
 import { Storage } from '../systems/storage.js';
 import { getBank, DEFAULT_BANK_ID } from '../education/registry.js';
-import level1 from '../levels/level1.js';
+import { LEVELS } from '../levels/index.js';
+import { totalStars } from '../systems/storage.js';
 import { CHAR_FRAME } from '../assets/characterRig.js';
 import { CHARACTERS, CHARACTER_ORDER, getCharacter } from '../characters/registry.js';
 import CharacterCard from '../ui/CharacterCard.js';
@@ -81,7 +82,7 @@ export default class MenuScene extends Phaser.Scene {
     chip.add(makeText(this, 0, 15, bank.goal, { size: 17, weight: '400', color: '#dfe4ff' }));
 
     // --- knoppen
-    const best = Storage.getBest(level1.id);
+    const stars = totalStars(LEVELS);
     const buttons = [
       new Button(this, W / 2, 352, 'Spelen', { width: 320, height: 72, variant: 'red', size: 36, onClick: () => this.openCharacterSelect() }),
       new Button(this, W / 2, 436, 'Speluitleg', { width: 280, height: 58, variant: 'navy', size: 26, onClick: () => this.openHowTo() }),
@@ -90,10 +91,12 @@ export default class MenuScene extends Phaser.Scene {
     this.focus = new FocusGroup(this, buttons);
     this.menuButtons = buttons;
 
-    if (best) {
-      const bx = W / 2 + 230;
-      makeText(this, bx, 336, 'Beste', { size: 16, weight: '600', color: '#aab4e0' });
-      for (let i = 0; i < 3; i++) this.add.image(bx - 30 + i * 30, 364, i < best.stars ? 'star_full' : 'star_empty').setScale(0.32);
+    if (stars > 0) {
+      // totaal verdiende sterren over alle levels
+      const bx = W / 2 + 232;
+      makeText(this, bx, 334, 'Sterren', { size: 16, weight: '600', color: '#aab4e0' });
+      this.add.image(bx - 26, 364, 'star_full').setScale(0.34);
+      makeText(this, bx + 14, 364, `${stars}/${LEVELS.length * 3}`, { size: 22, weight: '700', color: '#fff3d6' });
     }
 
     // --- footer
@@ -129,7 +132,8 @@ export default class MenuScene extends Phaser.Scene {
     this.focus.active = false;
     if (this.modalFocus) this.modalFocus.active = false;
     this.cameras.main.fadeOut(300, 7, 13, 36);
-    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Game', { bankId: this.bankId, levelId: level1.id, character: characterId }));
+    // na de personagekeuze naar de levelkaart
+    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Levels', { bankId: this.bankId, character: characterId }));
   }
 
   /** Personagekeuze: Piet of Sinterklaas (keuze wordt onthouden). */

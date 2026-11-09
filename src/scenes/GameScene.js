@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { VIEW, CAMERA, PLAYER, SCORING } from '../config/gameConfig.js';
-import level1 from '../levels/level1.js';
+import { VIEW, CAMERA, SCORING } from '../config/gameConfig.js';
+import { getLevel } from '../levels/index.js';
 import LevelBuilder from '../levels/LevelBuilder.js';
 import Player from '../entities/Player.js';
 import Chimney, { CHIMNEY_STATE } from '../entities/Chimney.js';
@@ -15,7 +15,6 @@ import { getCharacter } from '../characters/registry.js';
 import { Storage } from '../systems/storage.js';
 
 const STATE = { PLAY: 'play', QUIZ: 'quiz', DELIVER: 'deliver', RESPAWN: 'respawn', FINISH: 'finish' };
-const LEVELS = { [level1.id]: level1 };
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -23,7 +22,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   init(data = {}) {
-    this.level = LEVELS[data.levelId] ?? level1;
+    this.level = getLevel(data.levelId);
+    this.killY = this.level.height + 80; // onder de onderkant van het level: gevallen
     this.bank = getBank(data.bankId);
     this.character = getCharacter(data.character ?? Storage.settings.character);
     this.state = STATE.PLAY;
@@ -79,7 +79,10 @@ export default class GameScene extends Phaser.Scene {
     this.camFocusX = this.player.x;
     this.camLook = CAMERA.lookAhead;
     cam.scrollX = Phaser.Math.Clamp(this.player.x + this.camLook - W / 2, 0, L.width - W);
+    this.camGroundY = spawnY;
+    cam.scrollY = this.cameraYFor(spawnY);
     cam.fadeIn(350, 7, 13, 36);
+    this.showLevelTitle();
 
     this.createInput();
 
@@ -122,13 +125,22 @@ export default class GameScene extends Phaser.Scene {
     this.farTown = this.add.tileSprite(0, 720 - 300 - 90, W, 300, 'far_town').setOrigin(0).setScrollFactor(0).setDepth(-90);
     this.midTown = this.add.tileSprite(0, 720 - 380 + 30, W, 380, 'mid_town').setOrigin(0).setScrollFactor(0).setDepth(-80);
     this.fog = this.add.tileSprite(0, 720 - 200, W, 200, 'alley_fog').setOrigin(0).setScrollFactor(0).setDepth(-70);
+    // onder de mist: donkere steegjes (zichtbaar als de camera in hoge levels omlaag kijkt)
+    this.alleyDark = this.add.rectangle(0, 720, W, 720, 0x050816).setOrigin(0).setScrollFactor(0).setDepth(-69);
   }
 
   updateBackground(dt) {
-    const sx = this.cameras.main.scrollX;
+    const cam = this.cameras.main;
+    const sx = cam.scrollX;
     this.farTown.tilePositionX = sx * 0.12;
     this.midTown.tilePositionX = sx * 0.3;
     this.moon.x = 1010 - sx * 0.01;
+    // hoge levels: hoe hoger de camera, hoe verder de dorpslagen zakken (verticale parallax)
+    const above = (this.level.height - VIEW.height) - cam.scrollY; // 0 = camera onderaan
+    this.farTown.y = 720 - 300 - 90 + above * 0.2;
+    this.midTown.y = 720 - 380 + 30 + above * 0.45;
+    this.fog.y = 720 - 200 + above;
+    this.alleyDark.y = 720 + above;
     const span = VIEW.width + 400;
     for (const c of this.clouds) {
       c.off += c.v * dt;
@@ -141,7 +153,7 @@ export default class GameScene extends Phaser.Scene {
   spawnBird() {
     if (this.state === STATE.FINISH) return;
     const cam = this.cameras.main;
-    const y = Phaser.Math.Between(150, 300);
+    const y = cam.scrollY + Phaser.Math.Between(150, 300);
     const bird = this.add.sprite(cam.scrollX + VIEW.width + 60, y, 'bird_up').setDepth(5).setScale(0.8).play('bird-flap');
     bird.setFlipX(true);
     this.tweens.add({
@@ -182,7 +194,7 @@ export default class GameScene extends Phaser.Scene {
   update(time, delta) {
     const dt = Math.min(delta, 50) / 1000;
     const input = this.readInput();
-    this.world.updateMovers();
+    this.world.updateMovers(dt);
 
     if (this.state === STATE.PLAY) {
       this.tracker.timeMs += delta;
@@ -190,7 +202,7 @@ export default class GameScene extends Phaser.Scene {
       this.updateChimneyProximity(input);
       this.updateCheckpoints();
       this.checkFinish();
-      if (this.player.y > PLAYER.killY) this.fallRespawn();
+      if (this.player.y > this.killY) this.fallRespawn();
     } else if (this.state === STATE.QUIZ || this.state === STATE.DELIVER) {
       this.tracker.timeMs += delta;
       this.player.update(dt, { left: false, right: false, jumpDown: false, jumpPressed: false, jumpReleased: false });
@@ -211,6 +223,30 @@ export default class GameScene extends Phaser.Scene {
     if (Math.abs(dx) > CAMERA.deadzoneX) this.camFocusX += dx - Math.sign(dx) * CAMERA.deadzoneX;
     const desired = Phaser.Math.Clamp(this.camFocusX + this.camLook - VIEW.width / 2, 0, this.level.width - VIEW.width);
     cam.scrollX += (desired - cam.scrollX) * (1 - Math.exp(-CAMERA.smoothing * dt));
+
+    // verticaal: alleen bijstellen op de hoogte van het loopvlak (geen gewiebel bij elke sprong);
+    // bij een diepe val direct meegaan zodat Piet in beeld blijft
+    if (p.onFloor) this.camGroundY = p.y;
+    else if (p.y > this.camGroundY + CAMERA.fallFollowMargin) this.camGroundY = p.y - CAMERA.fallFollowMargin;
+    else if (p.y < this.camGroundY - 260) this.camGroundY = p.y + 260; // hoog op een lift
+    const targetY = this.cameraYFor(this.camGroundY);
+    cam.scrollY += (targetY - cam.scrollY) * (1 - Math.exp(-CAMERA.verticalSmoothing * dt));
+  }
+
+  /** Camera-y waarbij een loopvlak op hoogte `groundY` op de vaste schermhoogte komt. */
+  cameraYFor(groundY) {
+    return Phaser.Math.Clamp(groundY - VIEW.height * CAMERA.groundScreenY, 0, Math.max(0, this.level.height - VIEW.height));
+  }
+
+  showLevelTitle() {
+    const L = this.level;
+    const c = this.add.container(VIEW.width / 2, 210).setScrollFactor(0).setDepth(900).setAlpha(0);
+    const ribbon = this.add.image(0, 0, 'logo_ribbon').setScale(0.62, 0.55);
+    const t = makeText(this, 0, -14, L.name, { size: 44, weight: '700', color: '#ffffff', stroke: '#5a1010', strokeThickness: 7 }).setAngle(-2);
+    const s = makeText(this, 0, 36, `${L.world} · Level ${L.number}`, { size: 22, weight: '600', color: '#ffd66b', stroke: '#3a0a0a', strokeThickness: 5 }).setAngle(-2);
+    c.add([ribbon, t, s]);
+    this.tweens.add({ targets: c, alpha: 1, y: 190, duration: 450, delay: 300, ease: 'Back.Out' });
+    this.tweens.add({ targets: c, alpha: 0, y: 170, duration: 500, delay: 2300, onComplete: () => c.destroy() });
   }
 
   // ------------------------------------------------------------------ wereld-interactie
@@ -280,6 +316,8 @@ export default class GameScene extends Phaser.Scene {
       this.player.respawn(this.checkpoint.x, this.checkpoint.y - 2);
       this.camFocusX = this.player.x;
       cam.scrollX = Phaser.Math.Clamp(this.player.x + this.camLook - VIEW.width / 2, 0, this.level.width - VIEW.width);
+      this.camGroundY = this.checkpoint.y;
+      cam.scrollY = this.cameraYFor(this.checkpoint.y);
       cam.fadeIn(260, 7, 13, 36);
       AudioManager.play('respawn');
       bus.emit(EV.TOAST, 'Oeps! Terug naar het checkpoint.');
@@ -303,8 +341,10 @@ export default class GameScene extends Phaser.Scene {
     // camera centreert de schoorsteen
     const cam = this.cameras.main;
     const target = Phaser.Math.Clamp(chimney.x - VIEW.width / 2, 0, this.level.width - VIEW.width);
+    // dak van de schoorsteen op dezelfde schermhoogte als in level 1 (ruimte voor ballon en cadeaus)
+    const targetY = Phaser.Math.Clamp(chimney.roofY - 540, 0, Math.max(0, this.level.height - VIEW.height));
     this.tweens.add({
-      targets: cam, scrollX: target, duration: 380, ease: 'Sine.InOut',
+      targets: cam, scrollX: target, scrollY: targetY, duration: 380, ease: 'Sine.InOut',
       onComplete: () => {
         if (this.state !== STATE.QUIZ) return;
         this.quiz = new QuizPanel(this, {
@@ -381,7 +421,7 @@ export default class GameScene extends Phaser.Scene {
     const colors = [0xd63a32, 0x2f6fd6, 0x8a3fd0, 0xf2b632, 0x3fbf5a];
     const cam = this.cameras.main;
     const confetti = this.add.particles(0, 0, 'confetti', {
-      x: { min: cam.scrollX, max: cam.scrollX + VIEW.width }, y: -20,
+      x: { min: cam.scrollX, max: cam.scrollX + VIEW.width }, y: cam.scrollY - 20,
       speedY: { min: 120, max: 260 }, speedX: { min: -60, max: 60 }, rotate: { min: 0, max: 360 },
       lifespan: 4000, quantity: 3, frequency: 40, tint: colors, scale: { min: 0.8, max: 1.4 },
     }).setDepth(90);

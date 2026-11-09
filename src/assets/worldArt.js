@@ -203,9 +203,9 @@ const WALL = { brick: PAL.brick, plaster: PAL.plaster, stone: PAL.stone };
 export const ROOF_OVERHANG = 10;
 export const ROOF_PAD = 40; // ruimte boven het loopvlak in de texture
 
-export function makeBuildingTexture(scene, key, b, seed) {
+export function makeBuildingTexture(scene, key, b, seed, worldHeight = 720) {
   const w = b.w + ROOF_OVERHANG * 2;
-  const h = 720 - b.top + ROOF_PAD + 20;
+  const h = worldHeight - b.top + ROOF_PAD + 20;
   return canvasTexture(scene, key, w, h, (ctx) => {
     const r = rng(seed);
     const fx = ROOF_OVERHANG;

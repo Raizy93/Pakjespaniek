@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { makeBuildingTexture, makePlatformTexture, ROOF_OVERHANG, ROOF_PAD } from '../assets/worldArt.js';
 import { makeText } from '../ui/text.js';
 
-const BODY_DEPTH = 900; // gebouwen lopen ver door naar beneden
+const BODY_BELOW = 300; // gebouwen lopen door tot onder de onderkant van het level
 
 /** Bouwt de spelwereld op uit leveldata. Bevat geen spelregels. */
 export default class LevelBuilder {
@@ -52,9 +52,9 @@ export default class LevelBuilder {
 
   buildBuildings() {
     this.level.buildings.forEach((b, i) => {
-      const tex = makeBuildingTexture(this.scene, `${this.level.id}_b${i}`, b, 100 + i * 17);
+      const tex = makeBuildingTexture(this.scene, `${this.level.id}_b${i}`, b, 100 + i * 17, this.level.height);
       this.scene.add.image(b.x - ROOF_OVERHANG, b.top - ROOF_PAD, tex.key).setOrigin(0).setDepth(10);
-      this.addSolid(b.x, b.top, b.w, BODY_DEPTH, { surface: b.roof === 'ice' ? 'ice' : 'normal' });
+      this.addSolid(b.x, b.top, b.w, this.level.height - b.top + BODY_BELOW, { surface: b.roof === 'ice' ? 'ice' : 'normal' });
     });
   }
 
@@ -73,7 +73,9 @@ export default class LevelBuilder {
         const from = { x: p.x, y: p.y };
         const to = p.to;
         const len = Math.hypot(to.x - from.x, to.y - from.y);
-        img.setData('mover', { from, to, speed: p.speed, dirX: (to.x - from.x) / len, dirY: (to.y - from.y) / len, sign: 1, len });
+        // korte pauze aan de uiteinden: een rustig moment om op of af te stappen
+        const pause = p.pause ?? (to.x === from.x ? 0.8 : 0.4);
+        img.setData('mover', { from, to, speed: p.speed, dirX: (to.x - from.x) / len, dirY: (to.y - from.y) / len, sign: 1, len, pause, wait: 0 });
         img.body.setVelocity(img.getData('mover').dirX * p.speed, img.getData('mover').dirY * p.speed);
         this.movers.push(img);
       } else {
@@ -156,14 +158,25 @@ export default class LevelBuilder {
   }
 
   /** Movers heen en weer laten bewegen. */
-  updateMovers() {
+  /** Movers heen en weer laten bewegen, met een korte pauze aan elk uiteinde. */
+  updateMovers(dt = 1 / 60) {
+    if (this.scene.physics.world.isPaused) return;
     for (const m of this.movers) {
       const d = m.getData('mover');
+      if (d.wait > 0) {
+        d.wait -= dt;
+        m.body.setVelocity(0, 0);
+        continue;
+      }
       const px = m.x - d.from.x;
       const py = m.y - d.from.y;
       const along = px * d.dirX + py * d.dirY;
-      if (d.sign > 0 && along >= d.len) d.sign = -1;
-      else if (d.sign < 0 && along <= 0) d.sign = 1;
+      if ((d.sign > 0 && along >= d.len) || (d.sign < 0 && along <= 0)) {
+        d.sign = -d.sign;
+        d.wait = d.pause;
+        m.body.setVelocity(0, 0);
+        continue;
+      }
       m.body.setVelocity(d.dirX * d.speed * d.sign, d.dirY * d.speed * d.sign);
     }
   }

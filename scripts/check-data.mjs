@@ -5,7 +5,7 @@ import { parsePercent } from '../src/education/banks/breukenProcenten.js';
 import { validateBank, createRound } from '../src/education/QuestionBank.js';
 import ResultsTracker from '../src/education/ResultsTracker.js';
 import { SCORING } from '../src/config/gameConfig.js';
-import level1 from '../src/levels/level1.js';
+import { LEVELS } from '../src/levels/index.js';
 import { validateLevel } from '../src/levels/validateLevel.js';
 
 let failed = 0;
@@ -98,10 +98,17 @@ round.forEach((q, i) => {
 check(rt.delivered === 8 && rt.firstTryCorrect === 6 && rt.wrongAnswers === 2, 'Tracker telt bezorgd/direct goed/fouten');
 check(rt.stars === 2 && rt.mistakes.length === 2, 'Tracker: 2 sterren en 2 fouten terug te kijken');
 
-// 4. Level
-const levelErrors = validateLevel(level1);
-check(levelErrors.length === 0, `Level "${level1.name}" is haalbaar ${levelErrors.length ? '\n  ' + levelErrors.join('\n  ') : ''}`);
-check(level1.chimneys.length === 8, 'Level heeft 8 schoorstenen');
+// 4. Levels
+const levelIds = new Set();
+for (const level of LEVELS) {
+  const levelErrors = validateLevel(level);
+  const detail = levelErrors.length ? '\n  ' + levelErrors.join('\n  ') : '';
+  check(levelErrors.length === 0, `Level ${level.number} "${level.name}" is haalbaar${detail}`);
+  check(level.chimneys.length === 8, `Level ${level.number} heeft 8 schoorstenen`);
+  check(!levelIds.has(level.id), `Level ${level.number} heeft een unieke id (${level.id})`);
+  levelIds.add(level.id);
+}
+check(LEVELS.every((l, i) => l.number === i + 1), "Levels staan op volgorde genummerd");
 
 console.log(failed ? `\n${failed} controle(s) mislukt` : '\nAlle controles geslaagd');
 process.exit(failed ? 1 : 0);

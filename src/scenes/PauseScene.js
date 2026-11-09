@@ -40,10 +40,10 @@ export default class PauseScene extends Phaser.Scene {
         AudioManager.setSfx(!AudioManager.sfxOn);
         buttons[3].setLabel(this.sfxLabel());
       } }),
-      new Button(this, 0, 186, 'Naar hoofdmenu', { width: 320, height: 56, variant: 'gold', size: 24, onClick: () => {
+      new Button(this, 0, 186, 'Naar de levelkaart', { width: 320, height: 56, variant: 'gold', size: 24, onClick: () => {
         this.scene.stop('Hud');
         this.scene.stop('Game');
-        this.scene.start('Menu');
+        this.scene.start('Levels', { character: this.data_.character, bankId: this.data_.bankId, levelId: this.data_.levelId });
       } }),
     ];
     panel.add(buttons);

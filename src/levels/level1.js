@@ -13,6 +13,8 @@ export default {
   id: 'w1-l1',
   name: 'Het Sinterklaasdorp',
   world: 'Wereld 1',
+  number: 1,
+  tagline: 'Ren over de daken van het dorp',
   width: 11300,
   height: 720,
   spawn: { x: 150 },

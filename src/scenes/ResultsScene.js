@@ -5,6 +5,7 @@ import Button, { FocusGroup } from '../ui/Button.js';
 import { makeText, makePrompt, formatTime } from '../ui/text.js';
 import { AudioManager } from '../systems/AudioManager.js';
 import { Storage } from '../systems/storage.js';
+import { getLevel, nextLevel } from '../levels/index.js';
 
 export default class ResultsScene extends Phaser.Scene {
   constructor() {
@@ -22,6 +23,9 @@ export default class ResultsScene extends Phaser.Scene {
   create() {
     const { width: W, height: H } = VIEW;
     const s = this.summary;
+    const level = getLevel(this.levelId);
+    const next = nextLevel(this.levelId);
+    const nextWasLocked = next && !Storage.getBest(level.id);
     const isRecord = Storage.submitResult(this.levelId, { stars: s.stars, points: s.points });
 
     this.add.image(0, 0, 'sky').setOrigin(0);
@@ -33,14 +37,24 @@ export default class ResultsScene extends Phaser.Scene {
     // titel
     const ribbon = this.add.image(W / 2, 78, 'logo_ribbon').setScale(0.78, 0.72);
     const title = makeText(this, W / 2, 68, 'Bezorging voltooid!', { size: 54, weight: '700', color: '#ffffff', stroke: '#5a1010', strokeThickness: 8 }).setAngle(-2.5);
-    [ribbon, title].forEach((o) => {
+    const sub = makeText(this, W / 2, 138, `Level ${level.number} · ${level.name}`, { size: 22, weight: '600', color: '#ffd66b', stroke: '#0b1433', strokeThickness: 5 });
+    [ribbon, title, sub].forEach((o) => {
       o.setAlpha(0).y -= 30;
       this.tweens.add({ targets: o, alpha: 1, y: o.y + 30, duration: 450, ease: 'Back.Out' });
     });
 
     // het gekozen personage juicht
-    const hero = this.add.image(190, H - 60, `${this.character}_big_cheer`).setOrigin(0.5, 1).setScale(0.85);
-    this.tweens.add({ targets: hero, y: H - 76, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    const hero = this.add.image(185, H - 120, `${this.character}_big_cheer`).setOrigin(0.5, 1).setScale(0.78);
+    this.tweens.add({ targets: hero, y: H - 136, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+
+    // nieuw level vrijgespeeld?
+    if (nextWasLocked) {
+      const c = this.add.container(185, 200).setAlpha(0);
+      c.add(this.add.image(0, 0, panelKey(this, 250, 70, 'cream')));
+      c.add(makeText(this, 0, -12, 'Nieuw level open!', { size: 22, weight: '700', color: '#7a1d1d' }));
+      c.add(makeText(this, 0, 14, `Level ${next.number}: ${next.name}`, { size: 17, weight: '600', color: '#3a2205' }));
+      this.tweens.add({ targets: c, alpha: 1, y: 214, duration: 500, delay: 1600, ease: 'Back.Out', onStart: () => AudioManager.play('checkpoint') });
+    }
 
     // paneel met resultaten
     const px = W / 2 + 40;
@@ -92,14 +106,25 @@ export default class ResultsScene extends Phaser.Scene {
 
     // knoppen
     const by = H - 46;
-    const buttons = [
-      new Button(this, px - 200, by, 'Opnieuw spelen', { width: 250, height: 58, variant: 'red', size: 24, onClick: () => this.scene.start('Game', { bankId: this.bankId, levelId: this.levelId, character: this.character }) }),
-      new Button(this, px + 70, by, 'Hoofdmenu', { width: 220, height: 58, variant: 'navy', size: 24, onClick: () => this.scene.start('Menu') }),
-    ];
-    if (s.mistakes.length) {
-      buttons.push(new Button(this, px + 300, by, `Fouten (${s.mistakes.length})`, { width: 200, height: 58, variant: 'gold', size: 22, onClick: () => this.openMistakes() }));
-    }
+    const go = (levelId) => this.scene.start('Game', { bankId: this.bankId, levelId, character: this.character });
+    const specs = [
+      { label: 'Opnieuw', width: 190, variant: 'red', onClick: () => go(this.levelId) },
+      next && { label: 'Volgende level', width: 236, variant: 'green', onClick: () => go(next.id), focus: true },
+      { label: 'Levelkaart', width: 190, variant: 'navy', onClick: () => this.scene.start('Levels', { character: this.character, bankId: this.bankId, levelId: next?.id ?? this.levelId }) },
+      s.mistakes.length && { label: `Fouten (${s.mistakes.length})`, width: 170, variant: 'gold', onClick: () => this.openMistakes() },
+    ].filter(Boolean);
+    // knoppen naast elkaar, gecentreerd onder het paneel
+    const gap = 14;
+    const total = specs.reduce((sum, b) => sum + b.width, 0) + gap * (specs.length - 1);
+    let bx = px - total / 2;
+    const buttons = specs.map((b) => {
+      const btn = new Button(this, bx + b.width / 2, by, b.label, { width: b.width, height: 58, variant: b.variant, size: 22, onClick: b.onClick });
+      bx += b.width + gap;
+      return btn;
+    });
     this.focus = new FocusGroup(this, buttons, { horizontal: true });
+    const focusIndex = specs.findIndex((b) => b.focus);
+    if (focusIndex > 0) this.focus.focus(focusIndex, false);
     this.input.keyboard.on('keydown-ESC', () => this.closeMistakes());
     this.cameras.main.fadeIn(400, 7, 13, 36);
     AudioManager.playMusic('results');

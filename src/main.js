@@ -12,6 +12,7 @@ import GameScene from './scenes/GameScene.js';
 import HudScene from './scenes/HudScene.js';
 import PauseScene from './scenes/PauseScene.js';
 import ResultsScene from './scenes/ResultsScene.js';
+import LevelSelectScene from './scenes/LevelSelectScene.js';
 import AssetPreviewScene from './scenes/AssetPreviewScene.js';
 import { AudioManager } from './systems/AudioManager.js';
 
@@ -50,7 +51,7 @@ async function start() {
     },
     input: { keyboard: { target: window } },
     disableContextMenu: true,
-    scene: [BootScene, MenuScene, GameScene, HudScene, PauseScene, ResultsScene, ...(import.meta.env.DEV ? [AssetPreviewScene] : [])],
+    scene: [BootScene, MenuScene, LevelSelectScene, GameScene, HudScene, PauseScene, ResultsScene, ...(import.meta.env.DEV ? [AssetPreviewScene] : [])],
   });
 
   // Focus naar de game (belangrijk binnen een iframe op MeesterDanny.com)

@@ -51,5 +51,23 @@ export function validateLevel(level) {
   for (const x of level.checkpoints) if (!buildingAt(x)) errors.push(`Checkpoint x=${x} staat niet op een dak`);
   if (!buildingAt(level.spawn.x)) errors.push('Startpunt staat niet op een dak');
 
+  // hoogte: alles moet binnen het level vallen, met ruimte boven de hoogste daken
+  const H = level.height ?? 720;
+  for (const b of level.buildings) {
+    if (b.top >= H - 40) errors.push(`Huis@${b.x}: dak ligt te laag voor de levelhoogte`);
+    if (b.top < 200) errors.push(`Huis@${b.x}: dak ligt te hoog (geen ruimte voor de opdracht erboven)`);
+  }
+  // de opdracht (ballon + cadeaus) heeft minstens 440 px boven het schoorsteendak nodig
+  // (in level 1 visueel gecontroleerd met daken op y=440)
+  level.chimneys.forEach((x, i) => {
+    const b = buildingAt(x);
+    if (b && b.top < 440) errors.push(`Schoorsteen ${i + 1}: dak op y=${b.top} ligt te hoog voor de opdracht (min. 440)`);
+  });
+  for (const [x, y] of level.pepernoten) {
+    if (x < 0 || x > level.width || y < 0 || y > H) errors.push(`Pepernoot (${x}, ${y}) ligt buiten het level`);
+  }
+  const last = level.buildings.reduce((m, b) => Math.max(m, b.x + b.w), 0);
+  if (last < level.width) errors.push(`Laatste huis eindigt op ${last}, maar het level is ${level.width} breed`);
+
   return errors;
 }

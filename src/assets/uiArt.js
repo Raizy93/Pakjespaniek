@@ -156,6 +156,30 @@ export function makeUiArt(scene) {
     facetPoly(ctx, [[22, 11], [34, 0], [37, 7], [31, 11]], UI.gold, { cell: 4 });
   });
 
+  // levelkaart: rond bordje per level (open / op slot) en een slotje
+  const node = (key, rim, fill) =>
+    canvasTexture(scene, key, 132, 140, (ctx) => {
+      ctx.fillStyle = 'rgba(3,6,20,0.45)';
+      ctx.beginPath();
+      ctx.ellipse(66, 128, 50, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      facetCircle(ctx, 66, 64, 60, 60, rim, { sides: 12, light: 0.3, seed: 4 });
+      facetCircle(ctx, 66, 64, 49, 49, fill, { sides: 12, light: 0.22, seed: 7 });
+      poly(ctx, [[30, 40], [66, 22], [102, 40], [96, 46], [66, 31], [36, 46]], rgba('#ffffff', 0.18));
+    });
+  node('node_open', UI.gold, '#c8322f');
+  node('node_locked', '#5b6190', '#2a3060');
+  canvasTexture(scene, 'lock_icon', 44, 52, (ctx) => {
+    ctx.strokeStyle = '#c9cde6';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(22, 22, 11, Math.PI, 0);
+    ctx.stroke();
+    facetPoly(ctx, chamferPts(4, 20, 36, 28, 5), '#d9dcef', { cell: 10, light: 0.3 });
+    facetCircle(ctx, 22, 32, 4, 4, '#2a3060', { sides: 6 });
+    poly(ctx, [[20, 33], [24, 33], [25, 42], [19, 42]], '#2a3060');
+  });
+
   canvasTexture(scene, 'vignette', 320, 180, (ctx, w, h) => {
     const g = ctx.createRadialGradient(w / 2, h / 2, h * 0.25, w / 2, h / 2, w * 0.62);
     g.addColorStop(0, 'rgba(4,7,22,0)');

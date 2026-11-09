@@ -49,6 +49,10 @@ export const CAMERA = {
   smoothing: 7, // hoger = strakker (exponentieel, framerate-onafhankelijk)
   lookAheadSmoothing: 2.5,
   playerScreenX: 0.38, // waar Piet ongeveer staat (fractie van schermbreedte)
+  // Verticaal (hoge levels): volgt de hoogte van het dak waar Piet op staat, niet elke sprong
+  groundScreenY: 0.7, // waar het loopvlak op het scherm komt (fractie van schermhoogte)
+  verticalSmoothing: 3.2,
+  fallFollowMargin: 140, // valt Piet verder dan dit onder het loopvlak, dan volgt de camera direct
 };
 
 export const SCORING = {

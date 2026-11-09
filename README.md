@@ -17,6 +17,17 @@ Ongeveer de helft van de rondes bevat één "het geheel"-vraag (zoals 8/8 = 100%
 De foute antwoorden worden per ronde gekozen uit typische denkfouten (zoals 3/4 → 25%,
 1/4 → 4% of 1/5 → 25%), en de plek van het goede antwoord is steeds anders.
 
+## Levels
+
+| Level | Naam | Nieuw |
+|---|---|---|
+| 1 | Het Sinterklaasdorp | Lopen, springen, rijdende plankjes, glad ijs |
+| 2 | Hoge Daken | Hoogteverschillen: klimmen, grote sprongen omlaag en liften; de camera volgt ook omhoog |
+
+Na **Spelen** kiest de leerling een personage en daarna een level op de **levelkaart**.
+Een level gaat open zodra het vorige is uitgespeeld (met elk aantal sterren). De kaart toont
+per level de beste sterren en het totaal. De voortgang wordt in de browser bewaard.
+
 ## Spelen
 
 | Toets | Actie |
@@ -43,7 +54,7 @@ Open daarna <http://localhost:5173>.
 
 Handige ontwikkel-URL's (alleen in `npm run dev`):
 
-- `?play` – direct het level starten (`?play&char=sint` als Sinterklaas)
+- `?play` – direct level 1 starten (`?play&level=w1-l2` voor level 2, `&char=sint` als Sinterklaas)
 - `?preview` – alle assets op ware grootte bekijken
 - `?debug` – physics-botsingsvakken tonen
 - `?play&bot` – een testbot speelt het hele level met echte toetsaanslagen (log in `window.botLog`).
@@ -96,7 +107,8 @@ src/
   entities/Player.js       character controller (voor elk personage)
   characters/registry.js   speelbare personages (Piet, Sinterklaas)
   entities/Chimney.js      schoorsteen met 3 toestanden + poort
-  levels/level1.js         leveldata (puur data)
+  levels/index.js          volgorde van alle levels
+  levels/level1.js …       leveldata (puur data)
   levels/LevelBuilder.js   bouwt de wereld uit leveldata
   levels/validateLevel.js  controleert of gaten en hoogtes haalbaar zijn
   education/banks/         vragenbanken (één bestand per leerdoel)
@@ -153,8 +165,13 @@ de animaties (`<id>-run` enz.) en de grote portretten worden automatisch gemaakt
 
 ### Een nieuw level toevoegen
 
-Maak een nieuw bestand naast `level1.js` met dezelfde opbouw en voeg het toe aan `LEVELS`
-in `src/scenes/GameScene.js`. `npm run check` kan het level dan valideren.
+1. Maak een nieuw bestand naast `level2.js` met dezelfde opbouw (`id`, `name`, `number`,
+   `tagline`, `width`, `height`, daken, platforms, schoorstenen, …). Een level mag hoger zijn
+   dan 720 px; de camera volgt dan ook verticaal.
+2. Voeg het toe aan `LEVELS` in `src/levels/index.js`. Het verschijnt dan vanzelf op de levelkaart.
+3. Draai `npm run check`: die controleert of gaten en hoogtes haalbaar zijn en of er boven
+   elke schoorsteen genoeg ruimte is voor de opdracht.
+4. Laat de testbot het level uitspelen: `npm run dev` en open `?play&level=<id>&bot`.
 
 ## Verantwoording
 

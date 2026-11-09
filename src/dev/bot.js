@@ -18,8 +18,12 @@ function createBot(game, wrongOn) {
   window.botDone = false;
   const wrong = new Set(wrongOn);
   const held = { KeyD: false, Space: false };
+  const PHASER_KEY = { KeyD: 'D', Space: 'SPACE' };
   const set = (c, v) => {
-    if (held[c] !== v) {
+    // vergelijk met de échte toetsstatus: Phaser zet toetsen terug bij focusverlies
+    const key = game.scene.getScene('Game')?.keys?.[PHASER_KEY[c]];
+    const isDown = key ? key.isDown : held[c];
+    if (isDown !== v || held[c] !== v) {
       held[c] = v;
       if (v) kd(c);
       else ku(c);
@@ -31,6 +35,7 @@ function createBot(game, wrongOn) {
     pending.push([now + 50, code]);
   };
   let jumpStart = -1e9;
+  let jumpHold = 300;
   let lastQuiz = 0;
   let lastE = 0;
   let t0 = null;
@@ -101,7 +106,7 @@ function createBot(game, wrongOn) {
     // in een sprong: spatie minstens 300 ms vasthouden (volle sprong)
     if (now - jumpStart < 700) {
       set('KeyD', true);
-      set('Space', now - jumpStart < 300 || b.velocity.y < 0);
+      set('Space', now - jumpStart < jumpHold || (jumpHold >= 300 && b.velocity.y < 0));
       if (now - jumpStart > 150 && p.onFloor) jumpStart = -1e9;
       return;
     }
@@ -113,19 +118,20 @@ function createBot(game, wrongOn) {
 
     const surf = [
       ...s.world.solids.getChildren().filter((z) => z.body && z.body.enable && !z.getData('gate')).map((z) => ({ l: z.body.left, r: z.body.right, t: z.body.top })),
-      ...s.world.movers.map((m) => ({ l: m.body.left, r: m.body.right, t: m.body.top, mover: true })),
+      ...s.world.movers.map((m) => ({ l: m.body.left, r: m.body.right, t: m.body.top, mover: true, vy: m.body.velocity.y })),
     ];
     const cur = surf.filter((o) => Math.abs(o.t - b.bottom) < 8 && p.x >= o.l - 20 && p.x <= o.r + 20).sort((a, c) => c.r - a.r)[0];
     if (!cur) {
       set('KeyD', true);
       return;
     }
-    const jump = () => {
+    const jump = (short = false) => {
       jumpStart = now;
+      jumpHold = short ? 90 : 300;
       set('KeyD', true);
       set('Space', true);
     };
-    const wall = surf.some((o) => o.l >= b.right - 3 && o.l <= b.right + 10 && o.t < b.bottom - 6);
+    const wall = surf.some((o) => !o.mover && o.l >= b.right - 3 && o.l <= b.right + 10 && o.t < b.bottom - 6);
     if (wall) {
       jump();
       return;
@@ -137,9 +143,12 @@ function createBot(game, wrongOn) {
       return;
     }
     const target = surf
-      .filter((o) => o !== cur && o.r > edge + 20 && o.l < edge + (o.mover ? 90 : 172) && cur.t - o.t < 110 && o.t - cur.t < 260)
+      .filter((o) => o !== cur && o.r > edge + 20 && o.l < edge + (o.mover ? 90 : 172) && cur.t - o.t < (o.mover ? 40 : 110) && o.t - cur.t < 420)
       .sort((a, c) => a.l - c.l)[0];
-    if (target) jump();
+    // niet van een dalende lift af springen, en niet op een dalende lift springen: wacht op de pauze
+    const descending = (cur.mover && cur.vy > 1) || (target?.mover && target.vy > 1 && target.t > cur.t);
+    // op een lift: kort sprongetje (een volle sprong schiet eroverheen)
+    if (target && !descending) jump(Boolean(target.mover) && Math.abs(target.t - cur.t) < 60);
     else set('KeyD', p.x < edge - 14); // wachten op een plankje
   }
 
