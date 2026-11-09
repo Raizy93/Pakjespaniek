@@ -14,6 +14,7 @@ import PauseScene from './scenes/PauseScene.js';
 import ResultsScene from './scenes/ResultsScene.js';
 import LevelSelectScene from './scenes/LevelSelectScene.js';
 import AssetPreviewScene from './scenes/AssetPreviewScene.js';
+import OverlayScene from './scenes/OverlayScene.js';
 import { AudioManager } from './systems/AudioManager.js';
 
 // audiobestanden alvast downloaden; afspelen kan pas na de eerste klik of toets
@@ -51,7 +52,17 @@ async function start() {
     },
     input: { keyboard: { target: window } },
     disableContextMenu: true,
-    scene: [BootScene, MenuScene, LevelSelectScene, GameScene, HudScene, PauseScene, ResultsScene, ...(import.meta.env.DEV ? [AssetPreviewScene] : [])],
+    // OverlayScene als laatste: ligt boven alle andere schermen (knop volledig scherm)
+    scene: [BootScene, MenuScene, LevelSelectScene, GameScene, HudScene, PauseScene, ResultsScene, ...(import.meta.env.DEV ? [AssetPreviewScene] : []), OverlayScene],
+  });
+
+  // Sneltoets F: volledig scherm aan/uit. Bewust in het browser-event zelf (niet via Phaser),
+  // want browsers staan volledig scherm alleen toe direct vanuit een toetsdruk of klik.
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'KeyF' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (!game.scale.fullscreen.available) return;
+    AudioManager.unlock();
+    game.scale.toggleFullscreen();
   });
 
   // Focus naar de game (belangrijk binnen een iframe op MeesterDanny.com)

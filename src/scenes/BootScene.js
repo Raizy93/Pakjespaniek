@@ -19,6 +19,7 @@ export default class BootScene extends Phaser.Scene {
     this.time.delayedCall(30, () => {
       generateAllTextures(this);
       label.destroy();
+      this.scene.launch('Overlay'); // knop volledig scherm, boven elk scherm
       const params = new URLSearchParams(window.location.search);
       const dev = import.meta.env.DEV;
       if (dev && params.has('preview')) this.scene.start('AssetPreview');

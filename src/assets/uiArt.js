@@ -122,6 +122,36 @@ export function makeUiArt(scene) {
     poly(ctx, chamferPts(36, 18, 8, 26, 2), '#f4f2fb');
   });
 
+  // knop volledig scherm: vier hoekjes naar buiten (aan) of naar binnen (uit)
+  const fsButton = (key, inward) =>
+    canvasTexture(scene, key, 64, 66, (ctx) => {
+      poly(ctx, chamferPts(2, 6, 60, 58, 12), 'rgba(3,6,20,0.45)');
+      facetPoly(ctx, chamferPts(2, 2, 60, 58, 12), UI.gold, { cell: 14, light: 0.3 });
+      facetPoly(ctx, chamferPts(6, 6, 52, 50, 9), UI.panel, { cell: 16, light: 0.2 });
+      ctx.strokeStyle = '#f4f2fb';
+      ctx.lineWidth = 4.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      const c = [[17, 17, 1, 1], [47, 17, -1, 1], [17, 45, 1, -1], [47, 45, -1, -1]];
+      for (const [x, y, dx, dy] of c) {
+        const s = 9;
+        ctx.beginPath();
+        if (inward) {
+          // hoekje wijst naar het midden (scherm verkleinen)
+          ctx.moveTo(x + dx * 2, y + dy * (s + 2));
+          ctx.lineTo(x + dx * (s + 2), y + dy * (s + 2));
+          ctx.lineTo(x + dx * (s + 2), y + dy * 2);
+        } else {
+          ctx.moveTo(x, y + dy * s);
+          ctx.lineTo(x, y);
+          ctx.lineTo(x + dx * s, y);
+        }
+        ctx.stroke();
+      }
+    });
+  fsButton('btn_fullscreen', false);
+  fsButton('btn_fullscreen_exit', true);
+
   // hud-plaatje (pil met gouden rand)
   canvasTexture(scene, 'hud_pill', 200, 64, (ctx) => {
     poly(ctx, chamferPts(2, 6, 196, 56, 18), 'rgba(3,6,20,0.45)');

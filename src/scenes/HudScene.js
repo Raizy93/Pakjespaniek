@@ -24,11 +24,11 @@ export default class HudScene extends Phaser.Scene {
     this.delText = makeText(this, W / 2 + 16, 50, '0 / 8', { size: 30, weight: '700', color: '#ffffff' });
 
     // rechts: pauze
-    this.pauseBtn = this.add.image(W - 56, 54, 'btn_pause').setInteractive({ useHandCursor: true });
+    this.pauseBtn = this.add.image(W - 124, 54, 'btn_pause').setInteractive({ useHandCursor: true });
     this.pauseBtn.on('pointerover', () => this.tweens.add({ targets: this.pauseBtn, scale: 1.08, duration: 120 }));
     this.pauseBtn.on('pointerout', () => this.tweens.add({ targets: this.pauseBtn, scale: 1, duration: 120 }));
     this.pauseBtn.on('pointerup', () => bus.emit(EV.PAUSE_REQUEST));
-    makeText(this, W - 56, 98, 'Esc', { size: 15, weight: '600', color: '#aab4e0' });
+    makeText(this, W - 124, 98, 'Esc', { size: 15, weight: '600', color: '#aab4e0' });
 
     this.toast = makeText(this, W / 2, 112, '', { size: 24, weight: '700', color: '#fff3d6', stroke: '#0b1433', strokeThickness: 6 }).setAlpha(0);
 

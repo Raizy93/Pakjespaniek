@@ -201,7 +201,7 @@ export default class MenuScene extends Phaser.Scene {
       row(-118, ['Spatie', '↑'], 'Springen (lang drukken = hoger)');
       row(-56, ['E'], 'Opdracht openen bij een schoorsteen');
       row(6, ['1', '2', '3'], 'Kies het cadeau met het goede antwoord');
-      row(68, ['Esc'], 'Pauze');
+      row(68, ['Esc', 'F'], 'Pauze  ·  F = volledig scherm');
 
       c.add(this.add.image(-330, 160, 'chimney').setScale(0.7));
       c.add(this.add.image(-250, 150, 'gift_blue').setScale(0.42));

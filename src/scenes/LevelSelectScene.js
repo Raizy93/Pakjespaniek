@@ -43,9 +43,9 @@ export default class LevelSelectScene extends Phaser.Scene {
     this.add.image(W / 2, 70, 'logo_ribbon').setScale(0.6, 0.55);
     makeText(this, W / 2, 62, 'Kies een level', { size: 46, weight: '700', color: '#ffffff', stroke: '#5a1010', strokeThickness: 7 }).setAngle(-2);
     const max = LEVELS.length * 3;
-    this.add.image(W - 150, 52, 'hud_pill').setScale(0.9, 0.9);
-    this.add.image(W - 210, 52, 'star_full').setScale(0.42);
-    makeText(this, W - 130, 52, `${totalStars(LEVELS)} / ${max}`, { size: 28, weight: '700' });
+    this.add.image(W - 220, 52, 'hud_pill').setScale(0.9, 0.9);
+    this.add.image(W - 280, 52, 'star_full').setScale(0.42);
+    makeText(this, W - 200, 52, `${totalStars(LEVELS)} / ${max}`, { size: 28, weight: '700' });
 
     // pad met levelbordjes
     const n = LEVELS.length;
